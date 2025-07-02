@@ -1,3 +1,4 @@
+// src/components/Header.tsx
 
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -9,11 +10,6 @@ const Header = () => {
         <Link to="/" className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
           LinkSnap
         </Link>
-        <nav className="hidden md:flex space-x-8">
-          <Link to="/" className="text-gray-600 hover:text-gray-900 transition-colors">Home</Link>
-          <Link to="/features" className="text-gray-600 hover:text-gray-900 transition-colors">Features</Link>
-          <Link to="/pricing" className="text-gray-600 hover:text-gray-900 transition-colors">Pricing</Link>
-        </nav>
         <div className="flex space-x-3">
           <Link to="/signin">
             <Button variant="ghost">Sign In</Button>
