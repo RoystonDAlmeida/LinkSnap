@@ -1,5 +1,6 @@
 // src/pages/ForgotPassword.tsx - Forgot Password page
-import { useState } from "react";
+
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,15 +16,21 @@ const ForgotPassword = () => {
   const [success, setSuccess] = useState("");
   const [loading, setLoading] = useState(false);
 
+  useEffect(() => {
+    document.title = "LinkSnap | Forgot Password";
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setSuccess("");
     setLoading(true);
     try {
+      // Send password reset email
       await sendPasswordResetEmail(auth, email);
       setSuccess("Password reset email sent! Please check your inbox.");
     } catch (err: any) {
+      // Handle error
       if (err.code === "auth/user-not-found") {
         setError("No account found with this email.");
       } else {
@@ -47,9 +54,12 @@ const ForgotPassword = () => {
           <CardHeader>
             <CardTitle className="text-2xl text-center">Forgot Password</CardTitle>
           </CardHeader>
+          
           <CardContent className="space-y-4">
+            {/* Display error or success messages */}
             {error && <div className="text-red-500 text-center text-sm font-medium">{error}</div>}
             {success && <div className="text-green-600 text-center text-sm font-medium">{success}</div>}
+            
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
@@ -76,6 +86,7 @@ const ForgotPassword = () => {
               </Link>
             </p>
           </CardContent>
+          
         </Card>
       </div>
     </div>
