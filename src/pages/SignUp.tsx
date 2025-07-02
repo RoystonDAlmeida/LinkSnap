@@ -1,4 +1,6 @@
-import { useState } from "react";
+// src/pages/SignUp.tsx - Sign Up page
+
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +24,12 @@ const SignUp = () => {
   const navigate = useNavigate();
   const [success, setSuccess] = useState("");
 
+  // Set the page title
+  useEffect(() => {
+    document.title = "LinkSnap | Sign Up";
+  }, []);
+
+  // Handle input changes
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
@@ -29,6 +37,7 @@ const SignUp = () => {
     });
   };
 
+  // Handle form submission
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -47,13 +56,20 @@ const SignUp = () => {
 
     setLoading(true);
     try {
+      // Create user with email and password
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
+      
+      // Update user profile with display name
       await updateProfile(userCredential.user, { displayName: formData.name });
+      
+      // Send verification email
       await sendEmailVerification(userCredential.user);
       setSuccess("Account created! A verification email has been sent. Please verify your email before signing in.");
+      
+      // Sign out the user
       await signOut(auth);
 
-      // Optionally redirect to signin after a delay
+      // Redirect to signin after a delay
       setTimeout(() => {
         navigate("/signin");
       }, 3000);
@@ -68,6 +84,7 @@ const SignUp = () => {
     }
   };
 
+  // Handle Google sign-in
   const handleGoogleSignIn = async () => {
     setError("");
     setLoading(true);
