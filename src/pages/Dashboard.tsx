@@ -1,15 +1,47 @@
-
-import { useState } from "react";
+// src/pages/Dashboard.tsx - Dashboard page
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Link, Copy, BarChart3, Settings, Plus, ExternalLink, Calendar, MousePointer } from "lucide-react";
+import { auth } from "@/firebase";
+import { onAuthStateChanged, signOut } from "firebase/auth";
+import { useNavigate } from "react-router-dom";
 
 const Dashboard = () => {
   const [longUrl, setLongUrl] = useState("");
-  
+  const [user, setUser] = useState<any>(null);
+  const [unverified, setUnverified] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Check if user is authenticated
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (!currentUser) {
+        navigate("/signin");
+      } else if (!currentUser.emailVerified) {
+        setUnverified(true);
+        setTimeout(async () => {
+          await signOut(auth);
+          navigate("/signin");
+        }, 3000);
+      }
+    });
+    return () => unsubscribe();
+  }, [navigate]);
+
+  useEffect(() => {
+    document.title = "LinkSnap | Dashboard";
+  }, []);
+
+  const handleSignOut = async () => {
+    await signOut(auth);
+    navigate("/signin");
+  };
+
   const recentLinks = [
     {
       id: 1,
@@ -46,16 +78,23 @@ const Dashboard = () => {
             LinkSnap
           </h1>
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm">
-              <Settings className="w-4 h-4 mr-2" />
-              Settings
-            </Button>
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-blue-500 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-              JD
-            </div>
+            {user && (
+              <>
+                <span className="text-gray-700 font-medium">Welcome, {user.displayName || user.email}</span>
+                <Button variant="ghost" size="sm" onClick={handleSignOut}>
+                  Sign out
+                </Button>
+              </>
+            )}
           </div>
         </div>
       </header>
+
+      {unverified && (
+        <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded text-center mt-4 max-w-xl mx-auto">
+          Your email is not verified. Please check your inbox and verify your email address. You will be signed out.
+        </div>
+      )}
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Quick Stats */}
