@@ -9,6 +9,7 @@ try {
   if (!process.env.CASSANDRA_DB_SCB_PATH) throw new Error('Missing CASSANDRA_DB_SCB_PATH');
   if (!process.env.CASSANDRA_DB_CLIENT_ID) throw new Error('Missing CASSANDRA_DB_CLIENT_ID');
   if (!process.env.CASSANDRA_DB_CLIENT_SECRET) throw new Error('Missing CASSANDRA_DB_CLIENT_SECRET');
+  if (!process.env.CASSANDRA_DB_KEYSPACE) throw new Error('Missing CASSANDRA_DB_KEYSPACE');
 } catch (err) {
   console.error('Cassandra connection error:', err.message);
   process.exit(1);
@@ -23,6 +24,7 @@ const client = new Client({
         username: process.env.CASSANDRA_DB_CLIENT_ID,
         password: process.env.CASSANDRA_DB_CLIENT_SECRET,
     },
+    keyspace: process.env.CASSANDRA_DB_KEYSPACE,
   });
 
 module.exports = client; 
