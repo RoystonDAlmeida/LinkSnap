@@ -1,6 +1,10 @@
 // src/components/LinkSnapLoader - LinkSnapLoader spinner component
 
-const LinkSnapLoader = () => (
+type LinkSnapLoaderProps = {
+  message?: string;
+};
+
+const LinkSnapLoader = ({ message = "Loading your dashboard..." }: LinkSnapLoaderProps) => (
   <div className="flex flex-col items-center justify-center min-h-screen">
     <div className="mb-4">
       <span className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent select-none">
@@ -13,7 +17,7 @@ const LinkSnapLoader = () => (
         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
       </svg>
     </div>
-    <div className="mt-4 text-lg text-gray-600">Loading your dashboard...</div>
+    <div className="mt-4 text-lg text-gray-600">{message}</div>
   </div>
 );
 
