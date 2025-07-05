@@ -7,26 +7,33 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Link, Copy, BarChart3, Settings, Plus, ExternalLink, Calendar, MousePointer } from "lucide-react";
 import { auth } from "@/firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
+import { onAuthStateChanged, signOut, getIdToken } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
+import Header from "@/components/Header";
+import LinkSnapLoader from "@/components/LinkSnapLoader";
 
 const Dashboard = () => {
   const [longUrl, setLongUrl] = useState("");
   const [user, setUser] = useState<any>(null);
   const [unverified, setUnverified] = useState(false);
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
+  const [shortUrl, setShortUrl] = useState("");
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
+      setAuthChecked(true);
+      
       if (!currentUser) {
-        navigate("/signin");
+        navigate("/");
       } else if (!currentUser.emailVerified) {
         setUnverified(true);
         setTimeout(async () => {
           await signOut(auth);
-          navigate("/signin");
+          navigate("/");
         }, 3000);
       }
     });
@@ -40,6 +47,44 @@ const Dashboard = () => {
   const handleSignOut = async () => {
     await signOut(auth);
     navigate("/signin");
+  };
+
+  const handleShortenUrl = async () => {
+    if (!longUrl || !user) return;
+    setLoading(true);
+    setShortUrl("");
+
+    try {
+      // Get the authenticated user ID
+      const token = await getIdToken(user);
+
+      // Fetch the backend response for shortening the URL
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shorten`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ longUrl }),
+      });
+
+      // Decode the JSON response
+      const data = await response.json();
+
+      if (data.shortUrl) {
+        setShortUrl(data.shortUrl);
+        alert(`Short URL: ${data.shortUrl}`);
+        setLongUrl("");
+      } 
+      
+      else {
+        alert("Failed to shorten URL");
+      }
+    } catch (err) {
+      alert("Error shortening URL");
+    } finally {
+      setLoading(false);
+    }
   };
 
   const recentLinks = [
@@ -69,26 +114,13 @@ const Dashboard = () => {
     }
   ];
 
+  if (!authChecked) {
+    return <LinkSnapLoader />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            LinkSnap
-          </h1>
-          <div className="flex items-center space-x-4">
-            {user && (
-              <>
-                <span className="text-gray-700 font-medium">Welcome, {user.displayName || user.email}</span>
-                <Button variant="ghost" size="sm" onClick={handleSignOut}>
-                  Sign out
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
+      <Header />
 
       {unverified && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-800 px-4 py-2 rounded text-center mt-4 max-w-xl mx-auto">
@@ -164,8 +196,12 @@ const Dashboard = () => {
                 onChange={(e) => setLongUrl(e.target.value)}
                 className="flex-1 h-12"
               />
-              <Button className="h-12 px-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700">
-                Shorten URL
+              <Button
+                className="h-12 px-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                onClick={handleShortenUrl}
+                disabled={loading || !longUrl}
+              >
+                {loading ? "Shortening..." : "Shorten URL"}
               </Button>
             </div>
           </CardContent>
