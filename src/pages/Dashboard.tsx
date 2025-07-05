@@ -20,6 +20,9 @@ const Dashboard = () => {
   const [loading, setLoading] = useState(false);
   const [shortUrl, setShortUrl] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
+  const [showShortUrlModal, setShowShortUrlModal] = useState(false);
+  const [recentLinks, setRecentLinks] = useState([]);
+  const [linksLoading, setLinksLoading] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -53,6 +56,7 @@ const Dashboard = () => {
     if (!longUrl || !user) return;
     setLoading(true);
     setShortUrl("");
+    setShowShortUrlModal(false);
 
     try {
       // Get the authenticated user ID
@@ -73,10 +77,9 @@ const Dashboard = () => {
 
       if (data.shortUrl) {
         setShortUrl(data.shortUrl);
-        alert(`Short URL: ${data.shortUrl}`);
+        setShowShortUrlModal(true);
         setLongUrl("");
       } 
-      
       else {
         alert("Failed to shorten URL");
       }
@@ -87,32 +90,26 @@ const Dashboard = () => {
     }
   };
 
-  const recentLinks = [
-    {
-      id: 1,
-      shortUrl: "linksnap.co/abc123",
-      originalUrl: "https://www.example.com/very-long-url-that-needs-shortening",
-      clicks: 1247,
-      created: "2 days ago",
-      status: "active"
-    },
-    {
-      id: 2,
-      shortUrl: "linksnap.co/xyz789",
-      originalUrl: "https://www.another-example.com/another-long-url",
-      clicks: 856,
-      created: "5 days ago",
-      status: "active"
-    },
-    {
-      id: 3,
-      shortUrl: "linksnap.co/def456",
-      originalUrl: "https://www.third-example.com/yet-another-url",
-      clicks: 342,
-      created: "1 week ago",
-      status: "paused"
-    }
-  ];
+  // Fetch links after user is authenticated
+  useEffect(() => {
+    const fetchLinks = async () => {
+      if (!user) return;
+      setLinksLoading(true);
+      try {
+        const token = await getIdToken(user);
+        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/links/analytics`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await response.json();
+        setRecentLinks(Array.isArray(data.links) ? data.links : []);
+      } catch (err) {
+        setRecentLinks([]);
+      } finally {
+        setLinksLoading(false);
+      }
+    };
+    fetchLinks();
+  }, [user]);
 
   if (!authChecked) {
     return <LinkSnapLoader />;
@@ -225,33 +222,41 @@ const Dashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="space-y-4">
-                  {recentLinks.map((link) => (
-                    <div key={link.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <p className="font-semibold text-blue-600">{link.shortUrl}</p>
-                          <Badge variant={link.status === "active" ? "default" : "secondary"}>
-                            {link.status}
-                          </Badge>
+                  {linksLoading ? (
+                    <div className="text-center text-gray-500 py-8">Loading your links...</div>
+                  ) : recentLinks.length === 0 ? (
+                    <div className="text-center text-gray-400 py-8">No links found. Create your first short link above!</div>
+                  ) : (
+                    recentLinks.map((link) => (
+                      <div key={link.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center space-x-2 mb-2">
+                            <p className="font-semibold text-blue-600">{link.short_url}</p>
+                            <Badge variant={link.status === "active" ? "default" : "secondary"}>
+                              {link.status}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-600 truncate">{link.long_url}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {link.clicks} clicks • Created {new Date(link.created_at).toLocaleDateString()}
+                          </p>
                         </div>
-                        <p className="text-sm text-gray-600 truncate">{link.originalUrl}</p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          {link.clicks} clicks • Created {link.created}
-                        </p>
+                        <div className="flex items-center space-x-2 ml-4">
+                          <Button variant="ghost" size="sm" onClick={() => navigator.clipboard.writeText(link.short_url)}>
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm">
+                            <BarChart3 className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="sm" asChild>
+                            <a href={link.short_url} target="_blank" rel="noopener noreferrer">
+                              <ExternalLink className="w-4 h-4" />
+                            </a>
+                          </Button>
+                        </div>
                       </div>
-                      <div className="flex items-center space-x-2 ml-4">
-                        <Button variant="ghost" size="sm">
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <BarChart3 className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="sm">
-                          <ExternalLink className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -290,6 +295,43 @@ const Dashboard = () => {
           </TabsContent>
         </Tabs>
       </div>
+
+      {showShortUrlModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center relative animate-fade-in">
+            <button
+              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-2xl font-bold"
+              onClick={() => setShowShortUrlModal(false)}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <div className="mb-4">
+              <h2 className="text-2xl font-bold mb-2 text-blue-600 flex items-center justify-center gap-2">
+                <Link className="w-6 h-6 text-blue-500" />
+                Short URL Created!
+              </h2>
+              <p className="text-gray-700 mb-4">Your new short link is:</p>
+              <a
+                href={shortUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded font-mono break-all hover:underline mb-2"
+              >
+                {shortUrl}
+              </a>
+            </div>
+            <button
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
+              onClick={() => {
+                navigator.clipboard.writeText(shortUrl);
+              }}
+            >
+              Copy to Clipboard
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
