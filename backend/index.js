@@ -70,8 +70,12 @@ app.post('/api/shorten', authenticate, async (req, res) => {
     const shortUrl = `${process.env.BASE_URL}/${shortId}`;
 
     // Insert the record into the table
-    const insertQuery = 'INSERT INTO urls (id, long_url, short_url, user_id, created_at) VALUES (?, ?, ?, ?, ?)';
-    await cassandraClient.execute(insertQuery, [shortId, longUrl, shortUrl, userId, createdAt], { prepare: true });
+    const insertQuery = 'INSERT INTO urls (id, clicks, created_at, long_url, short_url, status, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
+    await cassandraClient.execute(
+      insertQuery,
+      [shortId, 0, createdAt, longUrl, shortUrl, 'active', userId],
+      { prepare: true }
+    );
 
     res.status(200).json({ shortUrl });
   } catch (err) {
@@ -124,9 +128,21 @@ app.get('/:id', async (req, res) => {
   }
 });
 
+// Endpoint to get links analytics
+app.get('/api/links/analytics', authenticate, async (req, res) => {
+    const userId = req.user.uid;
+    try {
+      const query = 'SELECT id, clicks, created_at, long_url, short_url, status FROM urls WHERE user_id = ?';
+      const result = await cassandraClient.execute(query, [userId], { prepare: true });
+      res.status(200).json({ links: result.rows });
+    } catch (err) {
+      res.status(500).json({ error: 'Database error', details: err.message });
+    }
+});
+
 (async () => {
   const PORT = process.env.PORT || 4000;
-  
+
   // Connect to Redis client
   try {
     await redisClient.connect();
