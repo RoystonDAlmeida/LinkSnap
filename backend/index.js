@@ -4,6 +4,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const redisClient = require('./redis');
 
 // Import firebase admin
 const admin = require('firebase-admin');
@@ -79,7 +80,7 @@ app.post('/api/shorten', authenticate, async (req, res) => {
   }
 });
 
-// Redirect endpoint
+// Redirect endpoint with Redis cache
 app.get('/:id', async (req, res) => {
   const { id } = req.params;
 
@@ -88,8 +89,15 @@ app.get('/:id', async (req, res) => {
     return res.status(400).send('Invalid or missing short URL id.');
   }
 
-  const query = 'SELECT long_url FROM urls WHERE id = ?';
   try {
+    // 1. Try Redis cache first
+    const cachedUrl = await redisClient.get(id);    // Get long URL corresponding to id
+    if (cachedUrl) {
+      return res.status(302).redirect(cachedUrl);
+    }
+
+    // 2. Fallback to Cassandra
+    const query = 'SELECT long_url FROM urls WHERE id = ?';
     const result = await cassandraClient.execute(query, [id], { prepare: true });
 
     // No record found for this id
@@ -104,22 +112,31 @@ app.get('/:id', async (req, res) => {
       return res.status(400).send('Invalid destination URL.');
     }
 
+    // 3. Cache in Redis for 1 day (86400 seconds)
+    await redisClient.setEx(id, 86400, longUrl);
+
     // Redirect(status code: 302) to the original long URL
     res.status(302).redirect(longUrl);
   } catch (err) {
-    // Database error
-    console.error('Database error during redirect:', err);
-    res.status(500).send('Database error');
+    // Database or Redis error
+    console.error('Error during redirect:', err);
+    res.status(500).send('Server error');
   }
 });
 
 (async () => {
   const PORT = process.env.PORT || 4000;
-  app.listen(PORT, () => { 
-    console.log(`Backend running on port ${PORT}`)
- });
+  
+  // Connect to Redis client
+  try {
+    await redisClient.connect();
+    console.log("Redis client connected");
+  } catch (err) {
+    console.error("Failed to connect to Redis:", err.message);
+    process.exit(1);
+  }
 
- // Connect to Cassandra client
+  // Connect to Cassandra client
   try {
     await cassandraClient.connect();
     console.log("Cassandra client connected");
@@ -127,4 +144,9 @@ app.get('/:id', async (req, res) => {
     console.error("Failed to connect to Cassandra:", err.message);
     process.exit(1);
   }
+
+  // Connect to both Redis and Cassandra before listening to the server
+  app.listen(PORT, () => {
+    console.log(`Backend running on port ${PORT}`)
+  });
 })(); 
