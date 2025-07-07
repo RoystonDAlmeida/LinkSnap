@@ -69,10 +69,10 @@ const Header = () => {
             {!user && (
               <div className="flex flex-row gap-3 mt-6 w-full justify-center">
                 <Link to="/signin">
-                  <Button variant="ghost" className="w-28">Sign In</Button>
+                  <Button variant="ghost" className="w-28 hover:shadow-[0_0_16px_4px_rgba(139,92,246,0.5)] hover:bg-white/80 transition-all duration-300">Sign In</Button>
                 </Link>
                 <Link to="/signup">
-                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 w-32">Get Started</Button>
+                  <Button className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 w-32 hover:shadow-[0_0_24px_6px_rgba(59,130,246,0.6)] transition-all duration-300">Get Started</Button>
                 </Link>
               </div>
             )}
