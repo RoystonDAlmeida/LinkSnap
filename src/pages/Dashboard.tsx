@@ -1,5 +1,5 @@
 // src/pages/Dashboard.tsx - Dashboard page
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,6 +11,8 @@ import { onAuthStateChanged, signOut, getIdToken } from "firebase/auth";
 import { useNavigate } from "react-router-dom";
 import Header from "@/components/Header";
 import LinkSnapLoader from "@/components/LinkSnapLoader";
+import { toast } from "@/components/ui/use-toast";
+import { io as socketIOClient } from "socket.io-client";
 
 const Dashboard = () => {
   const [longUrl, setLongUrl] = useState("");
@@ -23,6 +25,7 @@ const Dashboard = () => {
   const [showShortUrlModal, setShowShortUrlModal] = useState(false);
   const [recentLinks, setRecentLinks] = useState([]);
   const [linksLoading, setLinksLoading] = useState(false);
+  const hasWelcomed = useRef(false);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -38,6 +41,12 @@ const Dashboard = () => {
           await signOut(auth);
           navigate("/");
         }, 3000);
+      } else if (!hasWelcomed.current) {
+        toast({
+          title: `Welcome back, ${currentUser.displayName || currentUser.email || "User"}!`,
+          description: "Glad to see you again.",
+        });
+        hasWelcomed.current = true;
       }
     });
     return () => unsubscribe();
@@ -90,25 +99,44 @@ const Dashboard = () => {
     }
   };
 
+  const fetchLinks = async () => {
+    if (!user) return;
+    setLinksLoading(true);
+    try {
+      const token = await getIdToken(user);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/links/analytics`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setRecentLinks(Array.isArray(data.links) ? data.links : []);
+    } catch (err) {
+      setRecentLinks([]);
+    } finally {
+      setLinksLoading(false);
+    }
+  };
+
   // Fetch links after user is authenticated
   useEffect(() => {
-    const fetchLinks = async () => {
-      if (!user) return;
-      setLinksLoading(true);
-      try {
-        const token = await getIdToken(user);
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/links/analytics`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const data = await response.json();
-        setRecentLinks(Array.isArray(data.links) ? data.links : []);
-      } catch (err) {
-        setRecentLinks([]);
-      } finally {
-        setLinksLoading(false);
+    if (user) fetchLinks();
+  }, [user]);
+
+  // WebSocket: listen for real-time click updates
+  useEffect(() => {
+    if (!user) return;
+    const socket = socketIOClient(import.meta.env.VITE_BACKEND_URL);
+    socket.on('clicksUpdated', ({ userId, id, newClicks }) => {
+      if (userId === user.uid) {
+        setRecentLinks((links) =>
+          links.map((link) =>
+            link.id === id ? { ...link, clicks: newClicks } : link
+          )
+        );
       }
+    });
+    return () => {
+      socket.disconnect();
     };
-    fetchLinks();
   }, [user]);
 
   if (!authChecked) {
@@ -242,14 +270,33 @@ const Dashboard = () => {
                           </p>
                         </div>
                         <div className="flex items-center space-x-2 ml-4">
-                          <Button variant="ghost" size="sm" onClick={() => navigator.clipboard.writeText(link.short_url)}>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              navigator.clipboard.writeText(link.short_url);
+                              toast({
+                                title: "Copied to clipboard!",
+                                description: "The short URL has been copied.",
+                              });
+                            }}
+                          >
                             <Copy className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="sm">
                             <BarChart3 className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="sm" asChild>
-                            <a href={link.short_url} target="_blank" rel="noopener noreferrer">
+                            <a
+                              href={link.short_url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={() => {
+                                setTimeout(() => {
+                                  fetchLinks();
+                                }, 1000); // Wait 1 second for backend to update
+                              }}
+                            >
                               <ExternalLink className="w-4 h-4" />
                             </a>
                           </Button>
