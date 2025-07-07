@@ -1,0 +1,46 @@
+<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background circle -->
+  <circle cx="50" cy="50" r="45" fill="#2563eb" stroke="#1e40af" stroke-width="2"/>
+  
+  <!-- Chain links -->
+  <g transform="translate(50, 50)">
+    <!-- First link (left) -->
+    <ellipse cx="-15" cy="0" rx="8" ry="12" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Second link (right) -->
+    <ellipse cx="15" cy="0" rx="8" ry="12" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round"/>
+    
+    <!-- Break/snap effect in the middle -->
+    <g>
+      <!-- Left broken piece -->
+      <path d="M -7 -6 L -2 -6 L -1 -3 L -6 -3 Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="0.5"/>
+      <path d="M -7 6 L -2 6 L -1 3 L -6 3 Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="0.5"/>
+      
+      <!-- Right broken piece -->
+      <path d="M 7 -6 L 2 -6 L 1 -3 L 6 -3 Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="0.5"/>
+      <path d="M 7 6 L 2 6 L 1 3 L 6 3 Z" fill="#fbbf24" stroke="#f59e0b" stroke-width="0.5"/>
+      
+      <!-- Spark/snap effects -->
+      <circle cx="-3" cy="-8" r="1" fill="#fbbf24"/>
+      <circle cx="3" cy="8" r="1" fill="#fbbf24"/>
+      <circle cx="0" cy="-10" r="0.8" fill="#f59e0b"/>
+      <circle cx="0" cy="10" r="0.8" fill="#f59e0b"/>
+    </g>
+  </g>
+  
+  <!-- Speed/action lines -->
+  <g opacity="0.7">
+    <line x1="25" y1="25" x2="30" y2="20" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    <line x1="70" y1="75" x2="75" y2="80" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+    <line x1="75" y1="25" x2="80" y2="20" stroke="#ffffff" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  
+  <!-- Subtle gradient overlay -->
+  <defs>
+    <radialGradient id="shine" cx="0.3" cy="0.3" r="0.7">
+      <stop offset="0%" style="stop-color:#ffffff;stop-opacity:0.2"/>
+      <stop offset="100%" style="stop-color:#ffffff;stop-opacity:0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="50" cy="50" r="45" fill="url(#shine)"/>
+</svg>
