@@ -43,6 +43,12 @@ const SignIn = () => {
     setError("");
     setUnverified(false);
     setLoading(true);
+    // Check for empty email or password
+    if (!formData.email || !formData.password) {
+      setError("Please enter both email and password.");
+      setLoading(false);
+      return;
+    }
     try {
       // Set persistence
       await setPersistence(
@@ -79,7 +85,7 @@ const SignIn = () => {
     setError("");
     setLoading(true);
     try {
-      // Set persistence
+      // Set persistence(Local storage - when remember option is checked, else session storage)
       await setPersistence(
         auth,
         formData.rememberMe ? browserLocalPersistence : browserSessionPersistence
@@ -98,10 +104,19 @@ const SignIn = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link to="/" className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            LinkSnap
+        <div className="flex justify-center mb-6">
+          <Link to="/" className="group">
+            <Button variant="outline" className="flex items-center gap-2 px-6 py-3 rounded-lg text-blue-700 border-blue-500 hover:bg-blue-50 hover:shadow-[0_0_16px_4px_rgba(59,130,246,0.15)] transition-all duration-300">
+              <svg className="w-5 h-5 text-blue-600 group-hover:text-blue-800 transition" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-9 2v8m4-8v8m5-8l2 2m-2-2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8z" /></svg>
+              Back to Home
+            </Button>
           </Link>
+        </div>
+        <div className="text-center mb-8">
+          <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-2 justify-center">
+            <img src="/linksnap_icon.svg" alt="LinkSnap Icon" className="w-8 h-8" />
+            LinkSnap
+          </div>
           <p className="text-gray-600 mt-2">Welcome back! Please sign in to continue</p>
         </div>
 
@@ -115,6 +130,14 @@ const SignIn = () => {
 
           <CardContent className="space-y-4">
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Display error/unverified messages if any */}
+              {error && (
+                <div className="text-red-500 text-center text-sm font-medium">{error}</div>
+              )}
+
+              {unverified && (
+                <div className="text-yellow-600 text-center text-sm font-medium">Your email is not verified. Please check your inbox and verify your email address.</div>
+              )}
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
@@ -153,13 +176,6 @@ const SignIn = () => {
                   </button>
                 </div>
               </div>
-
-              {error && (
-                <div className="text-red-500 text-center text-sm font-medium">{error}</div>
-              )}
-              {unverified && (
-                <div className="text-yellow-600 text-center text-sm font-medium">Your email is not verified. Please check your inbox and verify your email address.</div>
-              )}
 
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
