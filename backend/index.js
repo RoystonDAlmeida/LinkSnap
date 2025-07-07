@@ -69,11 +69,19 @@ app.post('/api/shorten', authenticate, async (req, res) => {
     const createdAt = new Date();
     const shortUrl = `${process.env.BASE_URL}/${shortId}`;
 
-    // Insert the record into the table
+    // Insert the record into the main urls table
     const insertQuery = 'INSERT INTO urls (id, clicks, created_at, long_url, short_url, status, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
     await cassandraClient.execute(
       insertQuery,
       [shortId, 0, createdAt, longUrl, shortUrl, 'active', userId],
+      { prepare: true }
+    );
+
+    // Insert into urls_by_id for fast redirect
+    const insertByIdQuery = 'INSERT INTO urls_by_id (id, long_url) VALUES (?, ?)';
+    await cassandraClient.execute(
+      insertByIdQuery,
+      [shortId, longUrl],
       { prepare: true }
     );
 
@@ -100,8 +108,8 @@ app.get('/:id', async (req, res) => {
       return res.status(302).redirect(cachedUrl);
     }
 
-    // 2. Fallback to Cassandra
-    const query = 'SELECT long_url FROM urls WHERE id = ?';
+    // 2. Fallback to Cassandra (use urls_by_id table)
+    const query = 'SELECT long_url FROM urls_by_id WHERE id = ?';
     const result = await cassandraClient.execute(query, [id], { prepare: true });
 
     // No record found for this id
