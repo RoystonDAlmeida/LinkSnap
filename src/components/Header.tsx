@@ -58,13 +58,35 @@ const Header = () => {
               <img src="/linksnap_icon.svg" alt="LinkSnap Icon" className="w-8 h-8" />
               LinkSnap
             </div>
-            {/* Only show icons below on mobile if user is signed in */}
+
+            {/* Only show icon+label below on mobile if user is signed in */}
             {user && (
-              <div className="flex gap-6 mt-2 sm:hidden">
-                <span className="text-blue-600 flex items-center"><LayoutDashboard className="w-7 h-7" /></span>
-                <span className="text-blue-600 flex items-center"><HomeIcon className="w-7 h-7" /></span>
+              <div className="flex gap-2 mt-2 sm:hidden items-center justify-center">
+                {location.pathname === "/" && (
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center text-blue-600 hover:text-blue-800 transition"
+                  >
+                    <LayoutDashboard className="w-7 h-7 mr-1" />
+                    <span className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                      Dashboard
+                    </span>
+                  </Link>
+                )}
+                {location.pathname === "/dashboard" && (
+                  <Link
+                    to="/"
+                    className="flex items-center text-blue-600 hover:text-blue-800 transition"
+                  >
+                    <HomeIcon className="w-7 h-7 mr-1" />
+                    <span className="text-lg font-semibold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                      Home
+                    </span>
+                  </Link>
+                )}
               </div>
             )}
+            
             {/* Show Sign In/Get Started below title if not signed in */}
             {!user && (
               <div className="flex flex-row gap-3 mt-6 w-full justify-center">
