@@ -4,16 +4,23 @@ import Features from "@/components/Features";
 import Footer from "@/components/Footer";
 import { useEffect, useState } from "react";
 import LinkSnapLoader from "@/components/LinkSnapLoader";
+import { auth } from "@/firebase";
+import { onAuthStateChanged } from "firebase/auth";
 
 const Index = () => {
-  const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  const [user, setUser] = useState<any>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 1000); // Simulate loading
-    return () => clearTimeout(timer);
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      setAuthChecked(true);
+    });
+    return () => unsubscribe();
   }, []);
 
-  if (loading) {
+  if (!authChecked) {
+    // Loading spinner during initial auth check
     return <LinkSnapLoader message="Loading Landing Page..." />;
   }
 
