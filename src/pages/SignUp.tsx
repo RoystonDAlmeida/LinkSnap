@@ -103,10 +103,19 @@ const SignUp = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <Link to="/" className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            LinkSnap
+        <div className="flex justify-center mb-6">
+          <Link to="/" className="group">
+            <Button variant="outline" className="flex items-center gap-2 px-6 py-3 rounded-lg text-blue-700 border-blue-500 hover:bg-blue-50 hover:shadow-[0_0_16px_4px_rgba(59,130,246,0.15)] transition-all duration-300">
+              <svg className="w-5 h-5 text-blue-600 group-hover:text-blue-800 transition" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7m-9 2v8m4-8v8m5-8l2 2m-2-2v8a2 2 0 01-2 2H7a2 2 0 01-2-2v-8z" /></svg>
+              Back to Home
+            </Button>
           </Link>
+        </div>
+        <div className="text-center mb-4">
+          <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-2 justify-center">
+            <img src="/linksnap_icon.svg" alt="LinkSnap Icon" className="w-8 h-8" />
+            LinkSnap
+          </div>
           <p className="text-gray-600 mt-2">Create your account to get started</p>
         </div>
 
