@@ -5,6 +5,8 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const redisClient = require('./redis');
+const http = require('http');
+const { Server } = require('socket.io');
 
 // Import firebase admin
 const admin = require('firebase-admin');
@@ -14,6 +16,9 @@ const cassandraClient = require('./cassandra');
 
 // Import base62 function for generating IDs for long URLs
 const { base62Encode } = require('./base62');
+
+// Import processBatchClicks function for processing URL clicks from redis and insertion to cassandra
+const processBatchClicks = require('./processBatchClicks');
 
 const app = express();
 const allowedOrigin = process.env.FRONTEND_URL;
@@ -96,7 +101,6 @@ app.post('/api/shorten', authenticate, async (req, res) => {
 app.get('/:id', async (req, res) => {
   const { id } = req.params;
 
-  // No id provided
   if (!id || typeof id !== 'string' || id.trim() === '') {
     return res.status(400).send('Invalid or missing short URL id.');
   }
@@ -104,8 +108,9 @@ app.get('/:id', async (req, res) => {
   try {
     // 1. Try Redis cache first
     const cachedUrl = await redisClient.get(id);
+    let userId;
     if (cachedUrl) {
-      // Increment clicks in the url_clicks table (need user_id)
+      // Get userId for this id
       try {
         const userIdResult = await cassandraClient.execute(
           'SELECT user_id FROM urls WHERE id = ? ALLOW FILTERING',
@@ -113,15 +118,32 @@ app.get('/:id', async (req, res) => {
           { prepare: true }
         );
         if (userIdResult.rowLength > 0) {
-          const userId = userIdResult.rows[0].user_id;
-          await cassandraClient.execute(
-            'UPDATE url_clicks SET clicks = clicks + 1 WHERE user_id = ? AND id = ?',
-            [userId, id],
-            { prepare: true }
-          );
+          userId = userIdResult.rows[0].user_id;
+          // Increment click count in Redis (batch write to Cassandra later)
+          await redisClient.incr(`clicks:${userId}:${id}`);
+
+          // Emit real-time update to frontend (sum of Cassandra + Redis)
+          if (io) {
+            // Get Redis count
+            const redisClicks = Number(await redisClient.get(`clicks:${userId}:${id}`)) || 0;
+            // Get Cassandra count
+            let cassandraClicks = 0;
+            try {
+              const clicksResult = await cassandraClient.execute(
+                'SELECT clicks FROM url_clicks WHERE user_id = ? AND id = ?',
+                [userId, id],
+                { prepare: true }
+              );
+              if (clicksResult.rowLength > 0) {
+                cassandraClicks = Number(clicksResult.rows[0].clicks) || 0;
+              }
+            } catch {}
+            // Emit the sum
+            io.emit('clicksUpdated', { userId, id, newClicks: cassandraClicks + redisClicks });
+          }
         }
       } catch (err) {
-        console.error('Failed to increment clicks:', err);
+        console.error('Failed to increment clicks in Redis:', err);
       }
       return res.status(302).redirect(cachedUrl);
     }
@@ -143,7 +165,7 @@ app.get('/:id', async (req, res) => {
     // 3. Cache in Redis for 1 day (86400 seconds)
     await redisClient.setEx(id, 86400, longUrl);
 
-    // Increment clicks in the url_clicks table (need user_id)
+    // Get userId for this id
     try {
       const userIdResult = await cassandraClient.execute(
         'SELECT user_id FROM urls WHERE id = ? ALLOW FILTERING',
@@ -151,15 +173,32 @@ app.get('/:id', async (req, res) => {
         { prepare: true }
       );
       if (userIdResult.rowLength > 0) {
-        const userId = userIdResult.rows[0].user_id;
-        await cassandraClient.execute(
-          'UPDATE url_clicks SET clicks = clicks + 1 WHERE user_id = ? AND id = ?',
-          [userId, id],
-          { prepare: true }
-        );
+        userId = userIdResult.rows[0].user_id;
+        // Increment click count in Redis (batch write to Cassandra later)
+        await redisClient.incr(`clicks:${userId}:${id}`);
+        
+        // Emit real-time update to frontend (sum of Cassandra + Redis)
+        if (io) {
+          // Get Redis count
+          const redisClicks = Number(await redisClient.get(`clicks:${userId}:${id}`)) || 0;
+          // Get Cassandra count
+          let cassandraClicks = 0;
+          try {
+            const clicksResult = await cassandraClient.execute(
+              'SELECT clicks FROM url_clicks WHERE user_id = ? AND id = ?',
+              [userId, id],
+              { prepare: true }
+            );
+            if (clicksResult.rowLength > 0) {
+              cassandraClicks = Number(clicksResult.rows[0].clicks) || 0;
+            }
+          } catch {}
+          // Emit the sum
+          io.emit('clicksUpdated', { userId, id, newClicks: cassandraClicks + redisClicks });
+        }
       }
     } catch (err) {
-      console.error('Failed to increment clicks:', err);
+      console.error('Failed to increment clicks in Redis:', err);
     }
 
     res.status(302).redirect(longUrl);
@@ -169,10 +208,18 @@ app.get('/:id', async (req, res) => {
   }
 });
 
-// Endpoint to get links analytics
+// Endpoint to get links analytics (with Redis cache)
 app.get('/api/links/analytics', authenticate, async (req, res) => {
     const userId = req.user.uid;
+    const cacheKey = `analytics:${userId}`;
     try {
+      // 1. Try Redis cache first
+      const cached = await redisClient.get(cacheKey);
+      if (cached) {
+        return res.status(200).json(JSON.parse(cached));
+      }
+
+      // 2. Fetch from Cassandra (existing logic)
       const query = 'SELECT id, created_at, long_url, short_url, status FROM urls WHERE user_id = ?';
       const result = await cassandraClient.execute(query, [userId], { prepare: true });
       const links = await Promise.all(result.rows.map(async (row) => {
@@ -190,16 +237,36 @@ app.get('/api/links/analytics', authenticate, async (req, res) => {
         } catch (err) {
           // If error, keep clicks as 0
         }
+        // Add Redis click count (real-time, not yet batched)
+        let redisClicks = 0;
+        try {
+          const redisVal = await redisClient.get(`clicks:${userId}:${row.id}`);
+          if (redisVal) redisClicks = Number(redisVal) || 0;
+        } catch {}
+
+        // Ensure both are numbers
+        const clicksNum = Number(clicks) || 0;
+        const redisClicksNum = Number(redisClicks) || 0;
+
         return {
           ...row,
-          clicks,
+          clicks: clicksNum + redisClicksNum,
         };
       }));
+
+      // 3. Cache the result in Redis for 30 seconds
+      await redisClient.setEx(cacheKey, 30, JSON.stringify({ links }));
+
       res.status(200).json({ links });
     } catch (err) {
       res.status(500).json({ error: 'Database error', details: err.message });
     }
 });
+
+const server = http.createServer(app);
+const io = new Server(server, { cors: { origin: allowedOrigin } });
+
+setInterval(() => processBatchClicks(redisClient, cassandraClient, io), 60 * 1000); // every 60 seconds
 
 (async () => {
   const PORT = process.env.PORT || 4000;
@@ -223,7 +290,7 @@ app.get('/api/links/analytics', authenticate, async (req, res) => {
   }
 
   // Connect to both Redis and Cassandra before listening to the server
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(`Backend running on port ${PORT}`)
   });
 })(); 
