@@ -103,8 +103,26 @@ app.get('/:id', async (req, res) => {
 
   try {
     // 1. Try Redis cache first
-    const cachedUrl = await redisClient.get(id);    // Get long URL corresponding to id
+    const cachedUrl = await redisClient.get(id);
     if (cachedUrl) {
+      // Increment clicks in the url_clicks table (need user_id)
+      try {
+        const userIdResult = await cassandraClient.execute(
+          'SELECT user_id FROM urls WHERE id = ? ALLOW FILTERING',
+          [id],
+          { prepare: true }
+        );
+        if (userIdResult.rowLength > 0) {
+          const userId = userIdResult.rows[0].user_id;
+          await cassandraClient.execute(
+            'UPDATE url_clicks SET clicks = clicks + 1 WHERE user_id = ? AND id = ?',
+            [userId, id],
+            { prepare: true }
+          );
+        }
+      } catch (err) {
+        console.error('Failed to increment clicks:', err);
+      }
       return res.status(302).redirect(cachedUrl);
     }
 
@@ -112,14 +130,12 @@ app.get('/:id', async (req, res) => {
     const query = 'SELECT long_url FROM urls_by_id WHERE id = ?';
     const result = await cassandraClient.execute(query, [id], { prepare: true });
 
-    // No record found for this id
     if (result.rowLength === 0) {
       return res.status(404).send('Short URL not found.');
     }
 
     const longUrl = result.rows[0].long_url;
 
-    // long_url is missing or not a valid URL
     if (!longUrl || typeof longUrl !== 'string' || !/^https?:\/\//i.test(longUrl)) {
       return res.status(400).send('Invalid destination URL.');
     }
@@ -127,10 +143,27 @@ app.get('/:id', async (req, res) => {
     // 3. Cache in Redis for 1 day (86400 seconds)
     await redisClient.setEx(id, 86400, longUrl);
 
-    // Redirect(status code: 302) to the original long URL
+    // Increment clicks in the url_clicks table (need user_id)
+    try {
+      const userIdResult = await cassandraClient.execute(
+        'SELECT user_id FROM urls WHERE id = ? ALLOW FILTERING',
+        [id],
+        { prepare: true }
+      );
+      if (userIdResult.rowLength > 0) {
+        const userId = userIdResult.rows[0].user_id;
+        await cassandraClient.execute(
+          'UPDATE url_clicks SET clicks = clicks + 1 WHERE user_id = ? AND id = ?',
+          [userId, id],
+          { prepare: true }
+        );
+      }
+    } catch (err) {
+      console.error('Failed to increment clicks:', err);
+    }
+
     res.status(302).redirect(longUrl);
   } catch (err) {
-    // Database or Redis error
     console.error('Error during redirect:', err);
     res.status(500).send('Server error');
   }
@@ -140,9 +173,29 @@ app.get('/:id', async (req, res) => {
 app.get('/api/links/analytics', authenticate, async (req, res) => {
     const userId = req.user.uid;
     try {
-      const query = 'SELECT id, clicks, created_at, long_url, short_url, status FROM urls WHERE user_id = ?';
+      const query = 'SELECT id, created_at, long_url, short_url, status FROM urls WHERE user_id = ?';
       const result = await cassandraClient.execute(query, [userId], { prepare: true });
-      res.status(200).json({ links: result.rows });
+      const links = await Promise.all(result.rows.map(async (row) => {
+        // Fetch clicks from url_clicks table
+        let clicks = 0;
+        try {
+          const clicksResult = await cassandraClient.execute(
+            'SELECT clicks FROM url_clicks WHERE user_id = ? AND id = ?',
+            [userId, row.id],
+            { prepare: true }
+          );
+          if (clicksResult.rowLength > 0) {
+            clicks = clicksResult.rows[0].clicks;
+          }
+        } catch (err) {
+          // If error, keep clicks as 0
+        }
+        return {
+          ...row,
+          clicks,
+        };
+      }));
+      res.status(200).json({ links });
     } catch (err) {
       res.status(500).json({ error: 'Database error', details: err.message });
     }
