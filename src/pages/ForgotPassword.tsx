@@ -25,6 +25,14 @@ const ForgotPassword = () => {
     setError("");
     setSuccess("");
     setLoading(true);
+
+    // Check for missing email
+    if (!email) {
+      setError("Please enter your email.");
+      setLoading(false);
+      return;
+    }
+
     try {
       // Send password reset email
       await sendPasswordResetEmail(auth, email);
@@ -45,9 +53,10 @@ const ForgotPassword = () => {
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-blue-50 to-cyan-50 flex items-center justify-center p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+          <div className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent flex items-center gap-2 justify-center">
+            <img src="/linksnap_icon.svg" alt="LinkSnap Icon" className="w-8 h-8" />
             LinkSnap
-          </Link>
+          </div>
           <p className="text-gray-600 mt-2">Reset your password</p>
         </div>
         <Card className="shadow-xl border-0">
@@ -56,11 +65,11 @@ const ForgotPassword = () => {
           </CardHeader>
           
           <CardContent className="space-y-4">
-            {/* Display error or success messages */}
-            {error && <div className="text-red-500 text-center text-sm font-medium">{error}</div>}
-            {success && <div className="text-green-600 text-center text-sm font-medium">{success}</div>}
-            
             <form onSubmit={handleSubmit} className="space-y-4">
+              {/* Display error or success messages above the email input */}
+              {error && <div className="text-red-500 text-center text-sm font-medium">{error}</div>}
+              {success && <div className="text-green-600 text-center text-sm font-medium">{success}</div>}
+
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
