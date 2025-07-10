@@ -26,6 +26,7 @@ const Dashboard = () => {
   const [recentLinks, setRecentLinks] = useState([]);
   const [linksLoading, setLinksLoading] = useState(false);
   const hasWelcomed = useRef(false);
+  const [analyticsLink, setAnalyticsLink] = useState<any>(null);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -283,7 +284,12 @@ const Dashboard = () => {
                           >
                             <Copy className="w-4 h-4" />
                           </Button>
-                          <Button variant="ghost" size="sm">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/dashboard/analytics/${link.id}`)}
+                            aria-label="Show Analytics"
+                          >
                             <BarChart3 className="w-4 h-4" />
                           </Button>
                           <Button variant="ghost" size="sm" asChild>
