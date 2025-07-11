@@ -17,6 +17,7 @@ import LinksList from "@/components/dashboard/LinksList";
 import QuickStats from "@/components/dashboard/QuickStats";
 import ShortenUrlForm from "@/components/dashboard/ShortenUrlForm";
 import ShortUrlModal from "@/components/dashboard/ShortUrlModal";
+import { useLinks } from "@/context/LinksContext";
 
 const Dashboard = () => {
   const [longUrl, setLongUrl] = useState("");
@@ -27,10 +28,11 @@ const Dashboard = () => {
   const [shortUrl, setShortUrl] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
   const [showShortUrlModal, setShowShortUrlModal] = useState(false);
-  const [recentLinks, setRecentLinks] = useState([]);
-  const [linksLoading, setLinksLoading] = useState(false);
-  const [linksFetched, setLinksFetched] = useState(false);
   const hasWelcomed = useRef(false);
+
+  // Use global links context
+  const { recentLinks, setRecentLinks, linksFetched, setLinksFetched } = useLinks();
+  const [linksLoading, setLinksLoading] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -46,12 +48,16 @@ const Dashboard = () => {
           await signOut(auth);
           navigate("/");
         }, 3000);
-      } else if (!hasWelcomed.current) {
-        toast({
-          title: `Welcome back, ${currentUser.displayName || currentUser.email || "User"}!`,
-          description: "Glad to see you again.",
-        });
-        hasWelcomed.current = true;
+      } else {
+        // Use localStorage to persist welcome state per user
+        const welcomeKey = `welcomed_${currentUser.uid}`;
+        if (!localStorage.getItem(welcomeKey)) {
+          toast({
+            title: `Welcome back, ${currentUser.displayName || currentUser.email || "User"}!`,
+            description: "Glad to see you again.",
+          });
+          localStorage.setItem(welcomeKey, "true");
+        }
       }
     });
     return () => unsubscribe();
