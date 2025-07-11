@@ -1,18 +1,22 @@
 // src/pages/Dashboard.tsx - Dashboard page
 import { useState, useEffect, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Badge } from "@/components/ui/badge";
-import { Link, Copy, BarChart3, Settings, Plus, ExternalLink, Calendar, MousePointer } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { auth } from "@/firebase";
 import { onAuthStateChanged, signOut, getIdToken } from "firebase/auth";
-import { useNavigate } from "react-router-dom";
+import { io as socketIOClient } from "socket.io-client";
+
 import Header from "@/components/Header";
 import LinkSnapLoader from "@/components/LinkSnapLoader";
 import { toast } from "@/components/ui/use-toast";
-import { io as socketIOClient } from "socket.io-client";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+// Import below components that compose the dashboard component
+import AnalyticsOverview from "@/components/dashboard/AnalyticsOverview";
+import LinkSettings from "@/components/dashboard/LinkSettings";
+import LinksList from "@/components/dashboard/LinksList";
+import QuickStats from "@/components/dashboard/QuickStats";
+import ShortenUrlForm from "@/components/dashboard/ShortenUrlForm";
+import ShortUrlModal from "@/components/dashboard/ShortUrlModal";
 
 const Dashboard = () => {
   const [longUrl, setLongUrl] = useState("");
@@ -25,8 +29,8 @@ const Dashboard = () => {
   const [showShortUrlModal, setShowShortUrlModal] = useState(false);
   const [recentLinks, setRecentLinks] = useState([]);
   const [linksLoading, setLinksLoading] = useState(false);
+  const [linksFetched, setLinksFetched] = useState(false);
   const hasWelcomed = useRef(false);
-  const [analyticsLink, setAnalyticsLink] = useState<any>(null);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -53,6 +57,7 @@ const Dashboard = () => {
     return () => unsubscribe();
   }, [navigate]);
 
+  // Set the window title
   useEffect(() => {
     document.title = "LinkSnap | Dashboard";
   }, []);
@@ -62,8 +67,10 @@ const Dashboard = () => {
     navigate("/signin");
   };
 
+  // Handler for shortening URL on form submission
   const handleShortenUrl = async () => {
     if (!longUrl || !user) return;
+
     setLoading(true);
     setShortUrl("");
     setShowShortUrlModal(false);
@@ -89,31 +96,49 @@ const Dashboard = () => {
         setShortUrl(data.shortUrl);
         setShowShortUrlModal(true);
         setLongUrl("");
-      } 
-      else {
-        alert("Failed to shorten URL");
+
+        fetchLinks(); // Fetch links after shortening
+      } else {
+        toast({
+          title: "Failed to shorten URL",
+          description: data.message || "An error occurred while shortening the URL.",
+          variant: "destructive",
+        });
       }
     } catch (err) {
-      alert("Error shortening URL");
+      toast({
+        title: "Network or server error",
+        description: "Could not connect to the server. Please try again.",
+        variant: "destructive",
+      });
     } finally {
       setLoading(false);
     }
   };
 
+  // Handler for fetching analytics of all links
   const fetchLinks = async () => {
     if (!user) return;
+
     setLinksLoading(true);
+
     try {
       const token = await getIdToken(user);
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/links/analytics`, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
       const data = await response.json();
-      setRecentLinks(Array.isArray(data.links) ? data.links : []);
+      let links = Array.isArray(data.links) ? data.links : [];
+      
+      // Sort by created_at descending (most recent first)
+      links.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      setRecentLinks(links);
     } catch (err) {
       setRecentLinks([]);
     } finally {
       setLinksLoading(false);
+      setLinksFetched(true);
     }
   };
 
@@ -140,7 +165,44 @@ const Dashboard = () => {
     };
   }, [user]);
 
-  if (!authChecked) {
+  // Access totalLinks, totalClicks, thisMonth links and topLinks
+  const totalLinks = recentLinks.length;
+  const totalClicks = recentLinks.reduce((sum, link) => sum + (link.clicks || 0), 0);
+  const thisMonth = recentLinks.filter(link => {
+    const created = new Date(link.created_at);
+    const now = new Date();
+    return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
+  }).reduce((sum, link) => sum + (link.clicks || 0), 0);
+
+  // Find the link with the most clicks
+  const topLinkObj = recentLinks.reduce((max, link) => (link.clicks > (max?.clicks || 0) ? link : max), null);
+  const topLinkClicks = topLinkObj ? topLinkObj.clicks : 0;
+  const topLinkUrl = topLinkObj ? topLinkObj.short_url : "-";
+
+  // Handlers for LinksList
+  const handleCopy = (url: string) => {
+    navigator.clipboard.writeText(url);
+    toast({
+      title: "Copied to clipboard!",
+      description: "The short URL has been copied.",
+    });
+  };
+
+  const handleAnalytics = (id: string) => {
+    navigate(`/dashboard/analytics/${id}`);
+  };
+
+  const handleRefresh = () => {
+    fetchLinks();
+  };
+
+  // Handler for ShortUrlModal
+  const handleModalCopy = () => {
+    navigator.clipboard.writeText(shortUrl);
+  };
+
+  if (!authChecked || !linksFetched) {
+    // Fallback loader while checking authentication or loading links
     return <LinkSnapLoader />;
   }
 
@@ -156,82 +218,22 @@ const Dashboard = () => {
 
       <div className="container mx-auto px-4 py-8 max-w-6xl">
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Links</p>
-                  <p className="text-2xl font-bold">24</p>
-                </div>
-                <Link className="w-8 h-8 text-blue-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Clicks</p>
-                  <p className="text-2xl font-bold">2,445</p>
-                </div>
-                <MousePointer className="w-8 h-8 text-green-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">This Month</p>
-                  <p className="text-2xl font-bold">1,287</p>
-                </div>
-                <Calendar className="w-8 h-8 text-purple-500" />
-              </div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">Top Link</p>
-                  <p className="text-2xl font-bold">1,247</p>
-                </div>
-                <BarChart3 className="w-8 h-8 text-orange-500" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+        <QuickStats
+          totalLinks={linksLoading ? undefined : totalLinks}
+          totalClicks={linksLoading ? undefined : totalClicks}
+          thisMonth={linksLoading ? undefined : thisMonth}
+          topLinkClicks={linksLoading ? undefined : topLinkClicks}
+          topLinkUrl={linksLoading ? undefined : topLinkUrl}
+          loading={linksLoading}
+        />
 
         {/* URL Shortener */}
-        <Card className="mb-8">
-          <CardHeader>
-            <CardTitle className="flex items-center">
-              <Plus className="w-5 h-5 mr-2" />
-              Create New Short Link
-            </CardTitle>
-            <CardDescription>
-              Enter a long URL to create a shortened version
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-col md:flex-row gap-4">
-              <Input
-                placeholder="Enter your long URL here..."
-                value={longUrl}
-                onChange={(e) => setLongUrl(e.target.value)}
-                className="flex-1 h-12"
-              />
-              <Button
-                className="h-12 px-8 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-                onClick={handleShortenUrl}
-                disabled={loading || !longUrl}
-              >
-                {loading ? "Shortening..." : "Shorten URL"}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        <ShortenUrlForm
+          longUrl={longUrl}
+          setLongUrl={setLongUrl}
+          loading={loading}
+          handleShortenUrl={handleShortenUrl}
+        />
 
         {/* Links Management */}
         <Tabs defaultValue="recent" className="space-y-6">
@@ -242,149 +244,31 @@ const Dashboard = () => {
           </TabsList>
 
           <TabsContent value="recent" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Your Links</CardTitle>
-                <CardDescription>
-                  Manage and track your shortened URLs
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  {linksLoading ? (
-                    <div className="text-center text-gray-500 py-8">Loading your links...</div>
-                  ) : recentLinks.length === 0 ? (
-                    <div className="text-center text-gray-400 py-8">No links found. Create your first short link above!</div>
-                  ) : (
-                    recentLinks.map((link) => (
-                      <div key={link.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 mb-2">
-                            <p className="font-semibold text-blue-600">{link.short_url}</p>
-                            <Badge variant={link.status === "active" ? "default" : "secondary"}>
-                              {link.status}
-                            </Badge>
-                          </div>
-                          <p className="text-sm text-gray-600 truncate">{link.long_url}</p>
-                          <p className="text-xs text-gray-500 mt-1">
-                            {link.clicks} clicks • Created {new Date(link.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="flex items-center space-x-2 ml-4">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              navigator.clipboard.writeText(link.short_url);
-                              toast({
-                                title: "Copied to clipboard!",
-                                description: "The short URL has been copied.",
-                              });
-                            }}
-                          >
-                            <Copy className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/dashboard/analytics/${link.id}`)}
-                            aria-label="Show Analytics"
-                          >
-                            <BarChart3 className="w-4 h-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm" asChild>
-                            <a
-                              href={link.short_url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={() => {
-                                setTimeout(() => {
-                                  fetchLinks();
-                                }, 1000); // Wait 1 second for backend to update
-                              }}
-                            >
-                              <ExternalLink className="w-4 h-4" />
-                            </a>
-                          </Button>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </CardContent>
-            </Card>
+            <LinksList
+              links={recentLinks}
+              loading={linksLoading}
+              onCopy={handleCopy}
+              onAnalytics={handleAnalytics}
+              onRefresh={handleRefresh}
+            />
           </TabsContent>
 
           <TabsContent value="analytics">
-            <Card>
-              <CardHeader>
-                <CardTitle>Analytics Overview</CardTitle>
-                <CardDescription>
-                  Detailed insights about your link performance
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="h-64 flex items-center justify-center text-gray-500">
-                  Analytics charts and graphs would be displayed here
-                </div>
-              </CardContent>
-            </Card>
+            <AnalyticsOverview />
           </TabsContent>
 
           <TabsContent value="settings">
-            <Card>
-              <CardHeader>
-                <CardTitle>Link Settings</CardTitle>
-                <CardDescription>
-                  Configure your link preferences and options
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <p className="text-gray-600">Link customization and security settings would be available here</p>
-                </div>
-              </CardContent>
-            </Card>
+            <LinkSettings />
           </TabsContent>
         </Tabs>
       </div>
 
-      {showShortUrlModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
-          <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full text-center relative animate-fade-in">
-            <button
-              className="absolute top-2 right-2 text-gray-400 hover:text-gray-600 text-2xl font-bold"
-              onClick={() => setShowShortUrlModal(false)}
-              aria-label="Close"
-            >
-              ×
-            </button>
-            <div className="mb-4">
-              <h2 className="text-2xl font-bold mb-2 text-blue-600 flex items-center justify-center gap-2">
-                <Link className="w-6 h-6 text-blue-500" />
-                Short URL Created!
-              </h2>
-              <p className="text-gray-700 mb-4">Your new short link is:</p>
-              <a
-                href={shortUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-block bg-blue-100 text-blue-700 px-4 py-2 rounded font-mono break-all hover:underline mb-2"
-              >
-                {shortUrl}
-              </a>
-            </div>
-            <button
-              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-              onClick={() => {
-                navigator.clipboard.writeText(shortUrl);
-              }}
-            >
-              Copy to Clipboard
-            </button>
-          </div>
-        </div>
-      )}
+      <ShortUrlModal
+        shortUrl={shortUrl}
+        open={showShortUrlModal}
+        onClose={() => setShowShortUrlModal(false)}
+        onCopy={handleModalCopy}
+      />
     </div>
   );
 };
