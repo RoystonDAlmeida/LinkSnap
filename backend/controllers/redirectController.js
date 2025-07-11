@@ -1,6 +1,7 @@
 const cassandraClient = require('../cassandra');
 const redisClient = require('../redis');
 const UAParser = require('ua-parser-js');
+const logGeodata = require('../logGeodata');
 
 // Handler function for redirect route
 async function handleRedirect(req, res) {
@@ -66,6 +67,8 @@ async function handleRedirect(req, res) {
             } catch {}
             global.io.emit('clicksUpdated', { userId, id, newClicks: cassandraClicks + redisClicks });
           }
+          // Log geodata for this click
+          await logGeodata(req, cassandraClient, id, userId);
         }
       } catch (err) {
         console.error('Failed to increment clicks in Redis:', err);
@@ -139,6 +142,8 @@ async function handleRedirect(req, res) {
           } catch {}
           global.io.emit('clicksUpdated', { userId, id, newClicks: cassandraClicks + redisClicks });
         }
+        // Log geodata for this click
+        await logGeodata(req, cassandraClient, id, userId);
       }
     } catch (err) {
       console.error('Failed to increment clicks in Redis:', err);
