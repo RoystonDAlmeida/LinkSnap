@@ -24,10 +24,10 @@ async function shortenUrl(req, res) {
     const shortUrl = `${process.env.BASE_URL}/${shortId}`;
     
     // Insert the new short_url generated into 'urls' table
-    const insertQuery = 'INSERT INTO urls (id, clicks, created_at, long_url, short_url, status, user_id) VALUES (?, ?, ?, ?, ?, ?, ?)';
+    const insertQuery = 'INSERT INTO urls (id, created_at, long_url, short_url, status, user_id) VALUES (?, ?, ?, ?, ?, ?)';
     await cassandraClient.execute(
       insertQuery,
-      [shortId, 0, createdAt, longUrl, shortUrl, 'active', userId],
+      [shortId, createdAt, longUrl, shortUrl, 'active', userId],
       { prepare: true }
     );
 
