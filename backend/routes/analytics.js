@@ -4,8 +4,8 @@ const { getAllLinksAnalytics, getLinkAnalytics } = require('../controllers/analy
 const { getUserGeodataByLink } = require('../controllers/geodataController');
 const authenticate = require('../middleware/authenticate');
 
+router.get('/geodata-by-link', authenticate, getUserGeodataByLink);
 router.get('/', authenticate, getAllLinksAnalytics);
 router.get('/:id', authenticate, getLinkAnalytics);
-router.get('/geodata-by-link', authenticate, getUserGeodataByLink);
 
 module.exports = router; 
