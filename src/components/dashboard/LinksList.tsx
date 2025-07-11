@@ -5,6 +5,7 @@ import { Copy, BarChart3, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Tooltip, TooltipTrigger, TooltipContent, TooltipProvider } from "@/components/ui/tooltip";
 
 interface Link {
   id: string;
@@ -35,8 +36,8 @@ const LinksList = ({ links, loading, onCopy, onAnalytics, onRefresh }: LinksList
           Manage and track your shortened URLs
         </CardDescription>
       </CardHeader>
-      
       <CardContent>
+        <TooltipProvider>
         <div className="space-y-4">
           {loading ? (
             <div className="text-center text-gray-500 py-8">Loading your links...</div>
@@ -58,40 +59,59 @@ const LinksList = ({ links, loading, onCopy, onAnalytics, onRefresh }: LinksList
                   </p>
                 </div>
                 <div className="flex items-center space-x-2 ml-4">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onCopy(link.short_url)}
-                  >
-                    <Copy className="w-4 h-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => onAnalytics(link.id)}
-                    aria-label="Show Analytics"
-                  >
-                    <BarChart3 className="w-4 h-4" />
-                  </Button>
-                  <Button variant="ghost" size="sm" asChild>
-                    <a
-                      href={link.short_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      onClick={() => {
-                        setTimeout(() => {
-                          onRefresh();
-                        }, 1000);
-                      }}
-                    >
-                      <ExternalLink className="w-4 h-4" />
-                    </a>
-                  </Button>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onCopy(link.short_url)}
+                        aria-label="Copy short URL"
+                        className="group"
+                      >
+                        <Copy className="w-4 h-4 transition-colors duration-150 group-hover:text-blue-600 group-focus-visible:text-blue-600" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Copy short URL</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => onAnalytics(link.id)}
+                        aria-label="Show Analytics"
+                        className="group"
+                      >
+                        <BarChart3 className="w-4 h-4 transition-colors duration-150 group-hover:text-green-600 group-focus-visible:text-green-600" />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>View analytics</TooltipContent>
+                  </Tooltip>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button variant="ghost" size="sm" asChild aria-label="Open short URL in new tab" className="group">
+                        <a
+                          href={link.short_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={() => {
+                            setTimeout(() => {
+                              onRefresh();
+                            }, 1000);
+                          }}
+                        >
+                          <ExternalLink className="w-4 h-4 transition-colors duration-150 group-hover:text-purple-600 group-focus-visible:text-purple-600" />
+                        </a>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>Open short URL in new tab</TooltipContent>
+                  </Tooltip>
                 </div>
               </div>
             ))
           )}
         </div>
+        </TooltipProvider>
       </CardContent>
     </Card>
   );
