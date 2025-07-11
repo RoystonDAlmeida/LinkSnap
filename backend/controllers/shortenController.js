@@ -1,5 +1,12 @@
 const cassandraClient = require('../cassandra');
 const { base62Encode } = require('../base62');
+const crypto = require('crypto');
+
+// Helper to generate a varied integer from longUrl and timestamp
+function hashUrlToInt(url, timestamp) {
+  const hash = crypto.createHash('sha256').update(url + timestamp).digest('hex');
+  return parseInt(hash.slice(0, 12), 16); // Use first 12 hex digits for a large int
+}
 
 // Handler function for shortening longUrl
 async function shortenUrl(req, res) {
@@ -14,11 +21,23 @@ async function shortenUrl(req, res) {
     await cassandraClient.execute(counterQuery);
     const result = await cassandraClient.execute(selectQuery);
 
-    const nextId = result.rows[0].seq.low || result.rows[0].seq;
-    const shortId = base62Encode(nextId);
+    const createdAt = new Date();
     const userId = req.user.uid;
 
-    const createdAt = new Date();
+    // Collision-safe shortId generation using urls_by_id
+    let shortId, hashInt, exists, salt = 0;
+    const checkQuery = 'SELECT id FROM urls_by_id WHERE id = ?';
+
+    do {
+      // Add a random salt to timestamp for extra uniqueness
+      hashInt = hashUrlToInt(longUrl, createdAt.getTime() + salt);
+      shortId = base62Encode(hashInt);
+
+      const checkResult = await cassandraClient.execute(checkQuery, [shortId], { prepare: true });
+      exists = checkResult.rowLength > 0;
+
+      salt = Math.floor(Math.random() * 1000000); // new salt for next try
+    } while (exists);
 
     // Generate the short URL using shortId
     const shortUrl = `${process.env.BASE_URL}/${shortId}`;
