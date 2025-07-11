@@ -67,9 +67,9 @@ const ForgotPassword = () => {
           <CardContent className="space-y-4">
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Display error or success messages above the email input */}
-              {error && <div className="text-red-500 text-center text-sm font-medium">{error}</div>}
-              {success && <div className="text-green-600 text-center text-sm font-medium">{success}</div>}
-
+            {error && <div className="text-red-500 text-center text-sm font-medium">{error}</div>}
+            {success && <div className="text-green-600 text-center text-sm font-medium">{success}</div>}
+            
               <div className="space-y-2">
                 <Label htmlFor="email">Email</Label>
                 <div className="relative">
