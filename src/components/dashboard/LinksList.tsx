@@ -45,10 +45,10 @@ const LinksList = ({ links, loading, onCopy, onAnalytics, onRefresh }: LinksList
             <div className="text-center text-gray-400 py-8">No links found. Create your first short link above!</div>
           ) : (
             links.map((link) => (
-              <div key={link.id} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+              <div key={link.id} className={`flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50 transition-colors ${link.status === "disabled" ? "opacity-60" : ""}`}>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center space-x-2 mb-2">
-                    <p className="font-semibold text-blue-600">{link.short_url}</p>
+                    <p className={`font-semibold text-blue-600 ${link.status === "disabled" ? "line-through" : ""}`}>{link.short_url}</p>
                     <Badge variant={link.status === "active" ? "default" : "secondary"}>
                       {link.status}
                     </Badge>
@@ -58,7 +58,7 @@ const LinksList = ({ links, loading, onCopy, onAnalytics, onRefresh }: LinksList
                     {link.clicks} clicks • Created {new Date(link.created_at).toLocaleDateString()}
                   </p>
                 </div>
-                <div className="flex items-center space-x-2 ml-4">
+                <div className={`flex items-center space-x-2 ml-4 ${link.status === "disabled" ? "line-through" : ""}`}>
                   <Tooltip>
                     <TooltipTrigger asChild>
                       <Button
@@ -67,6 +67,7 @@ const LinksList = ({ links, loading, onCopy, onAnalytics, onRefresh }: LinksList
                         onClick={() => onCopy(link.short_url)}
                         aria-label="Copy short URL"
                         className="group"
+                        disabled={link.status === "disabled"}
                       >
                         <Copy className="w-4 h-4 transition-colors duration-150 group-hover:text-blue-600 group-focus-visible:text-blue-600" />
                       </Button>
@@ -81,6 +82,7 @@ const LinksList = ({ links, loading, onCopy, onAnalytics, onRefresh }: LinksList
                         onClick={() => onAnalytics(link.id)}
                         aria-label="Show Analytics"
                         className="group"
+                        disabled={link.status === "disabled"}
                       >
                         <BarChart3 className="w-4 h-4 transition-colors duration-150 group-hover:text-green-600 group-focus-visible:text-green-600" />
                       </Button>
@@ -89,19 +91,28 @@ const LinksList = ({ links, loading, onCopy, onAnalytics, onRefresh }: LinksList
                   </Tooltip>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button variant="ghost" size="sm" asChild aria-label="Open short URL in new tab" className="group">
-                        <a
-                          href={link.short_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={() => {
-                            setTimeout(() => {
-                              onRefresh();
-                            }, 1000);
-                          }}
-                        >
-                          <ExternalLink className="w-4 h-4 transition-colors duration-150 group-hover:text-purple-600 group-focus-visible:text-purple-600" />
-                        </a>
+                      <Button variant="ghost" size="sm" asChild aria-label="Open short URL in new tab" className="group" disabled={link.status === "disabled"}>
+                        {link.status === "disabled" ? (
+                          <a
+                            tabIndex={-1}
+                            style={{ pointerEvents: "none" }}
+                          >
+                            <ExternalLink className="w-4 h-4 transition-colors duration-150 group-hover:text-purple-600 group-focus-visible:text-purple-600" />
+                          </a>
+                        ) : (
+                          <a
+                            href={link.short_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={() => {
+                              setTimeout(() => {
+                                onRefresh();
+                              }, 1000);
+                            }}
+                          >
+                            <ExternalLink className="w-4 h-4 transition-colors duration-150 group-hover:text-purple-600 group-focus-visible:text-purple-600" />
+                          </a>
+                        )}
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>Open short URL in new tab</TooltipContent>
