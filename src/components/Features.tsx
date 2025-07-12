@@ -1,5 +1,4 @@
-
-import { BarChart3, Globe, QrCode, MousePointer, Users, Lock } from "lucide-react";
+import { BarChart3, Globe, QrCode, MousePointer, Lock } from "lucide-react";
 
 const Features = () => {
   const features = [
@@ -22,11 +21,6 @@ const Features = () => {
       icon: MousePointer,
       title: "Click Tracking",
       description: "Monitor every click with real-time data and comprehensive reporting."
-    },
-    {
-      icon: Users,
-      title: "Team Collaboration",
-      description: "Share and manage links with your team members and set permissions."
     },
     {
       icon: Lock,
