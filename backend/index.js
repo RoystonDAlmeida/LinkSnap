@@ -6,6 +6,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
+const path = require('path');
 
 // Import firebase admin
 const admin = require('firebase-admin');
@@ -23,8 +24,11 @@ const redirectRoutes = require('./routes/redirect');
 
 const app = express();
 const allowedOrigin = process.env.FRONTEND_URL;
+
 app.use(cors({ origin: allowedOrigin })); // Restrict the backend server to certain origin
 app.use(bodyParser.json());
+app.use(express.static(path.join(__dirname, '../public'))); // Serve static assets
+app.use(express.urlencoded({ extended: true }));  // For reading form submissions in express
 
 // Use routes
 app.use('/api/shorten', shortenRoutes);
