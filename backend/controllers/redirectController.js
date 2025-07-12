@@ -18,14 +18,19 @@ async function handleRedirect(req, res) {
 
     if (cachedUrl) {
       try {
-        const userIdResult = await cassandraClient.execute(
-          'SELECT user_id FROM urls WHERE id = ? ALLOW FILTERING',
+        // Fetch user_id and status
+        const userResult = await cassandraClient.execute(
+          'SELECT user_id, status FROM urls WHERE id = ? ALLOW FILTERING',
           [id],
           { prepare: true }
         );
 
-        if (userIdResult.rowLength > 0) {
-          userId = userIdResult.rows[0].user_id;
+        if (userResult.rowLength > 0) {
+          userId = userResult.rows[0].user_id;
+          const status = userResult.rows[0].status;
+          if (status !== 'active') {
+            return res.status(403).send('The link is disabled');
+          }
           await redisClient.incr(`clicks:${userId}:${id}`); // Increment the clicks associated with id
 
           const today = new Date().toISOString().slice(0, 10);
@@ -83,6 +88,21 @@ async function handleRedirect(req, res) {
 
     if (result.rowLength === 0) {
       return res.status(404).send('Short URL not found.');
+    }
+
+    // Check status from urls table
+    const statusResult = await cassandraClient.execute(
+      'SELECT user_id, status FROM urls WHERE id = ? ALLOW FILTERING',
+      [id],
+      { prepare: true }
+    );
+    
+    if (statusResult.rowLength > 0) {
+      userId = statusResult.rows[0].user_id;
+      const status = statusResult.rows[0].status;
+      if (status !== 'active') {
+        return res.status(403).send('The link is disabled');
+      }
     }
 
     // Get the long URL corresponding to short url(id)
