@@ -1,6 +1,7 @@
 const cassandraClient = require('../cassandra');
 const { base62Encode } = require('../base62');
 const crypto = require('crypto');
+const bcrypt = require('bcrypt');
 
 // Helper to generate a varied integer from longUrl and timestamp
 function hashUrlToInt(url, timestamp) {
@@ -10,10 +11,27 @@ function hashUrlToInt(url, timestamp) {
 
 // Handler function for shortening longUrl
 async function shortenUrl(req, res) {
-  const { longUrl } = req.body;
+  const { longUrl, password, expiresAt } = req.body;
   if (!longUrl) return res.status(400).json({ error: 'No URL provided' });
 
   try {
+    // Validate password if provided
+    let password_hash = null;
+    if (password) {
+      if (typeof password !== 'string' || password.length < 4)
+        return res.status(400).json({ error: 'Password must be at least 4 characters.' });
+      password_hash = await bcrypt.hash(password, 10);
+    }
+
+    // Validate expiration date if provided
+    let expires_at = null;
+    if (expiresAt) {
+      const date = new Date(expiresAt);
+      if (isNaN(date.getTime()) || date < new Date())
+        return res.status(400).json({ error: 'Expiration date must be a valid future date.' });
+      expires_at = date;
+    }
+
     const counterQuery = "UPDATE url_counter SET seq = seq + 1 WHERE id = 'global';";
     const selectQuery = "SELECT seq FROM url_counter WHERE id = 'global';";
 
@@ -43,18 +61,18 @@ async function shortenUrl(req, res) {
     const shortUrl = `${process.env.BASE_URL}/${shortId}`;
     
     // Insert the new short_url generated into 'urls' table
-    const insertQuery = 'INSERT INTO urls (id, created_at, long_url, short_url, status, user_id) VALUES (?, ?, ?, ?, ?, ?)';
+    const insertQuery = 'INSERT INTO urls (id, created_at, long_url, short_url, status, user_id, password_hash, expires_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
     await cassandraClient.execute(
       insertQuery,
-      [shortId, createdAt, longUrl, shortUrl, 'active', userId],
+      [shortId, createdAt, longUrl, shortUrl, 'active', userId, password_hash, expires_at],
       { prepare: true }
     );
 
-    // Insert the (id, long_url) combination into 'urls_by_id' table
-    const insertByIdQuery = 'INSERT INTO urls_by_id (id, long_url) VALUES (?, ?)';
+    // Insert the (id, long_url) combination into 'urls_by_id' table, with password_hash and expires_at
+    const insertByIdQuery = 'INSERT INTO urls_by_id (id, long_url, password_hash, expires_at) VALUES (?, ?, ?, ?)';
     await cassandraClient.execute(
       insertByIdQuery,
-      [shortId, longUrl],
+      [shortId, longUrl, password_hash, expires_at],
       { prepare: true }
     );
 
