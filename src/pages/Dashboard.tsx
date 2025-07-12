@@ -74,7 +74,9 @@ const Dashboard = () => {
   };
 
   // Handler for shortening URL on form submission
-  const handleShortenUrl = async () => {
+  const handleShortenUrl = async (
+    { password, expiresAt }: { password?: string; expiresAt?: string } = {}
+  ) => {
     if (!longUrl || !user) return;
 
     setLoading(true);
@@ -85,6 +87,13 @@ const Dashboard = () => {
       // Get the authenticated user ID
       const token = await getIdToken(user);
 
+      // Build the request body, only including password/expiresAt if set
+      const body = {
+        longUrl,
+        ...(password && password.trim() !== "" ? { password } : {}),
+        ...(expiresAt && expiresAt.trim() !== "" ? { expiresAt } : {}),
+      };
+
       // Fetch the backend response for shortening the URL
       const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shorten`, {
         method: "POST",
@@ -92,7 +101,7 @@ const Dashboard = () => {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ longUrl }),
+        body: JSON.stringify(body),
       });
 
       // Decode the JSON response
