@@ -173,16 +173,16 @@ const Dashboard = () => {
 
   // Access totalLinks, totalClicks, thisMonth links and topLinks
   const totalLinks = recentLinks.length;
-  const totalClicks = recentLinks.reduce((sum, link) => sum + (link.clicks || 0), 0);
+  const totalClicks = recentLinks.reduce((sum, link) => sum + (Number(link.clicks) || 0), 0);
   const thisMonth = recentLinks.filter(link => {
     const created = new Date(link.created_at);
     const now = new Date();
     return created.getMonth() === now.getMonth() && created.getFullYear() === now.getFullYear();
-  }).reduce((sum, link) => sum + (link.clicks || 0), 0);
+  }).reduce((sum, link) => sum + (Number(link.clicks) || 0), 0);
 
   // Find the link with the most clicks
-  const topLinkObj = recentLinks.reduce((max, link) => (link.clicks > (max?.clicks || 0) ? link : max), null);
-  const topLinkClicks = topLinkObj ? topLinkObj.clicks : 0;
+  const topLinkObj = recentLinks.reduce((max, link) => (Number(link.clicks) > (Number(max?.clicks) || 0) ? link : max), null);
+  const topLinkClicks = topLinkObj ? Number(topLinkObj.clicks) : 0;
   const topLinkUrl = topLinkObj ? topLinkObj.short_url : "-";
 
   // Handlers for LinksList
