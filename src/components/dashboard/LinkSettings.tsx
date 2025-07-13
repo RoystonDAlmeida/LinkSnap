@@ -24,9 +24,11 @@ const LinkSettings = () => {
     try {
       const user = auth.currentUser;
       if (!user) throw new Error("Not authenticated");
+
       const token = await getIdToken(user);
+
       // PATCH request to update expiry/password
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shorten/${linkId}`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/links/${linkId}/settings`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -35,6 +37,7 @@ const LinkSettings = () => {
         body: JSON.stringify(updates),
       });
       if (!response.ok) throw new Error("Failed to update link");
+
       const updated = await response.json();
       // Update local state
       setRecentLinks((links: any[]) =>
@@ -49,6 +52,7 @@ const LinkSettings = () => {
     }
   };
 
+  // Handler for toggle event(active/disabled links)
   const handleToggle = async (linkId: string, currentStatus: string) => {
     setLoadingId(linkId);
     setError(null);
@@ -169,7 +173,6 @@ const LinkSettings = () => {
                 setShowShareMenuId={setShowShareMenuId}
                 handleDownloadQR={handleDownloadQR}
                 toast={toast}
-                // Remove edit modal id props, add onEditClick
                 onEditClick={() => setEditLink(link)}
               />
             ))
