@@ -28,6 +28,7 @@ const Dashboard = () => {
   const [shortUrl, setShortUrl] = useState("");
   const [authChecked, setAuthChecked] = useState(false);
   const [showShortUrlModal, setShowShortUrlModal] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const hasWelcomed = useRef(false);
 
   // Use global links context
@@ -82,6 +83,7 @@ const Dashboard = () => {
     setLoading(true);
     setShortUrl("");
     setShowShortUrlModal(false);
+    setFormError(null);
 
     try {
       // Get the authenticated user ID
@@ -107,12 +109,14 @@ const Dashboard = () => {
       // Decode the JSON response
       const data = await response.json();
 
-      if (data.shortUrl) {
+      if (response.ok && data.shortUrl) {
         setShortUrl(data.shortUrl);
         setShowShortUrlModal(true);
         setLongUrl("");
-
+        setFormError(null);
         fetchLinks(); // Fetch links after shortening
+      } else if (response.status === 400 && data.error) {
+        setFormError(data.error);
       } else {
         toast({
           title: "Failed to shorten URL",
@@ -248,6 +252,7 @@ const Dashboard = () => {
           setLongUrl={setLongUrl}
           loading={loading}
           handleShortenUrl={handleShortenUrl}
+          error={formError}
         />
 
         {/* Links Management */}
