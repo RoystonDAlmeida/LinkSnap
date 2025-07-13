@@ -12,7 +12,7 @@ async function getAllLinksAnalytics(req, res) {
       return res.status(200).json(JSON.parse(cached));
     }
 
-    const query = 'SELECT id, created_at, long_url, short_url, status FROM urls WHERE user_id = ?';
+    const query = 'SELECT id, created_at, long_url, short_url, status, expires_at, password_hash FROM urls WHERE user_id = ?';
     const result = await cassandraClient.execute(query, [userId], { prepare: true });
 
     const links = await Promise.all(result.rows.map(async (row) => {
@@ -34,8 +34,11 @@ async function getAllLinksAnalytics(req, res) {
       } catch {}
       const clicksNum = Number(clicks) || 0;
       const redisClicksNum = Number(redisClicks) || 0;
+      // Map expires_at to expiry_date and password_hash to password for frontend compatibility
       return {
         ...row,
+        expiry_date: row.expires_at ? row.expires_at : null,
+        password: row.password_hash ? true : null, // Only indicate presence of password, not the hash
         clicks: clicksNum + redisClicksNum,
       };
     }));
