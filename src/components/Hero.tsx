@@ -6,6 +6,16 @@ import { Link, useNavigate } from "react-router-dom";
 import ShortUrlModal from "./dashboard/ShortUrlModal";
 import { auth } from "@/firebase";
 import { onAuthStateChanged, getIdToken } from "firebase/auth";
+import { z } from "zod";
+
+// Zod schema for input validation (only longUrl)
+const urlSchema = z.object({
+  longUrl: z.string()
+    .url("Please enter a valid URL (must start with http:// or https://)")
+    .refine(val => /^https?:\/\//.test(val), {
+      message: "URL must start with http:// or https://"
+    })
+});
 
 const Hero = () => {
   const [longUrl, setLongUrl] = useState("");
@@ -31,25 +41,10 @@ const Hero = () => {
       return;
     }
 
-    // Validation: Empty URL
-    if (longUrl.trim() === "") {
-      setError("Please enter a valid URL");
-      return;
-    }
-
-    // Validation: Strict HTTP/HTTPS URL
-    let urlToTest = longUrl.trim();
-    
-    // Only allow http or https URLs
-    const urlPattern = /^(https?:\/\/)([\w-]+\.)+[\w-]+(\/[^\s]*)?$/i;
-    if (!urlPattern.test(urlToTest)) {
-      setError("Please enter a valid URL starting with http:// or https:// (e.g., https://example.com).");
-      return;
-    }
-    try {
-      new URL(urlToTest);
-    } catch {
-      setError("Please enter a valid URL (must start with http:// or https:// and be a real domain).");
+    // Frontend validation using zod (only longUrl)
+    const result = urlSchema.pick({ longUrl: true }).safeParse({ longUrl });
+    if (!result.success) {
+      setError(result.error.errors[0].message);
       return;
     }
 
@@ -65,9 +60,16 @@ const Hero = () => {
         body: JSON.stringify({ longUrl: longUrl }),
       });
       const data = await response.json();
-      setShortUrl(data.shortUrl);
-      setShowModal(true);
-      setLongUrl("");
+      if (response.ok && data.shortUrl) {
+        setShortUrl(data.shortUrl);
+        setShowModal(true);
+        setLongUrl("");
+        setError("");
+      } else if (response.status === 400 && data.error) {
+        setError(data.error);
+      } else {
+        setError("An error occurred while shortening the URL.");
+      }
     } finally {
       setLoading(false);
     }
