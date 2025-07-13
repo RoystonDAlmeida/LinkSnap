@@ -7,6 +7,9 @@ const bodyParser = require('body-parser');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const rateLimit = require('express-rate-limit');
+const helmet = require('helmet');
+const xssClean = require('xss-clean');
 
 // Import firebase admin
 const admin = require('firebase-admin');
@@ -24,7 +27,21 @@ const redirectRoutes = require('./routes/redirect');
 const linkSettingsRoutes = require('./routes/linkSettings');
 
 const app = express();
+app.use(helmet());
+app.use(xssClean());
 const allowedOrigin = process.env.FRONTEND_URL;
+
+// Rate limiter: 100 requests per 15 minutes per IP
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true, // Return rate limit info in the `RateLimit-*` headers
+  legacyHeaders: false, // Disable the `X-RateLimit-*` headers
+  message: { error: "Too many requests, please try again later." }
+});
+
+// Apply rate limiter to all requests
+app.use(limiter);
 
 app.use(cors({ origin: allowedOrigin })); // Restrict the backend server to certain origin
 app.use(bodyParser.json());
