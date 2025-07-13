@@ -5,6 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
 import { useState } from "react";
+import { z } from "zod";
 
 interface ShortenUrlFormProps {
   longUrl: string;
@@ -13,10 +14,34 @@ interface ShortenUrlFormProps {
   handleShortenUrl: (options?: { password?: string; expiresAt?: string }) => void;
 }
 
+const urlSchema = z.object({
+  longUrl: z.string()
+    .url("Please enter a valid URL (must start with http:// or https://)")
+    .refine(val => /^https?:\/\//.test(val), {
+      message: "URL must start with http:// or https://"
+    }),
+
+  password: z.string().refine(val => {
+    if (val.length === 0) return true; // Optional
+    // At least 8 chars, one uppercase, one lowercase, one number, one special char
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(val);
+  }, {
+    message: "Password must be at least 8 characters, include upper and lower case letters, a number, and a special character."
+  }),
+  
+  expiresAt: z.string().optional().refine(val => {
+    if (!val) return true;
+    return !isNaN(Date.parse(val)) && new Date(val) > new Date();
+  }, {
+    message: "Expiration date must be a valid future date"
+  }),
+});
+
 const ShortenUrlForm = ({ longUrl, setLongUrl, loading, handleShortenUrl }: ShortenUrlFormProps) => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);  // Password field
   const [expiresAt, setExpiresAt] = useState(""); // Expiry-date field
+  const [error, setError] = useState<string | null>(null);
 
   // Helper to clear all fields
   const clearFields = () => {
@@ -28,6 +53,12 @@ const ShortenUrlForm = ({ longUrl, setLongUrl, loading, handleShortenUrl }: Shor
 
   // Wrap handleShortenUrl to clear fields after submission
   const handleSubmit = async () => {
+    setError(null);
+    const result = urlSchema.safeParse({ longUrl, password, expiresAt });
+    if (!result.success) {
+      setError(result.error.errors[0].message);
+      return;
+    }
     await handleShortenUrl({ password, expiresAt });
     clearFields();
   };
@@ -45,6 +76,13 @@ const ShortenUrlForm = ({ longUrl, setLongUrl, loading, handleShortenUrl }: Shor
       </CardHeader>
 
       <CardContent>
+        {/* Error message above input and button */}
+        {error && (
+          <div className="flex items-center text-red-500 text-sm mb-2 text-left w-full" aria-live="polite">
+            <span className="mr-1">⚠️</span>
+            {error}
+          </div>
+        )}
         <div className="flex flex-col md:flex-row gap-4">
           <Input
             placeholder="Enter your long URL here..."
