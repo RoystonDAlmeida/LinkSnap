@@ -21,6 +21,7 @@ const processBatchClicks = require('./processBatchClicks');
 const shortenRoutes = require('./routes/shorten');
 const analyticsRoutes = require('./routes/analytics');
 const redirectRoutes = require('./routes/redirect');
+const linkSettingsRoutes = require('./routes/linkSettings');
 
 const app = express();
 const allowedOrigin = process.env.FRONTEND_URL;
@@ -32,6 +33,7 @@ app.use(express.urlencoded({ extended: true }));  // For reading form submission
 
 // Use routes
 app.use('/api/shorten', shortenRoutes);
+app.use('/api/links', linkSettingsRoutes); // for settings like expiry/password
 app.use('/api/links/analytics', analyticsRoutes);
 app.use('/', redirectRoutes); // for /:id
 
