@@ -12,6 +12,7 @@ interface ShortenUrlFormProps {
   setLongUrl: (url: string) => void;
   loading: boolean;
   handleShortenUrl: (options?: { password?: string; expiresAt?: string }) => void;
+  error?: string | null;
 }
 
 const urlSchema = z.object({
@@ -37,7 +38,7 @@ const urlSchema = z.object({
   }),
 });
 
-const ShortenUrlForm = ({ longUrl, setLongUrl, loading, handleShortenUrl }: ShortenUrlFormProps) => {
+const ShortenUrlForm = ({ longUrl, setLongUrl, loading, handleShortenUrl, error: propsError }: ShortenUrlFormProps) => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);  // Password field
   const [expiresAt, setExpiresAt] = useState(""); // Expiry-date field
@@ -77,10 +78,10 @@ const ShortenUrlForm = ({ longUrl, setLongUrl, loading, handleShortenUrl }: Shor
 
       <CardContent>
         {/* Error message above input and button */}
-        {error && (
+        {(error || propsError) && (
           <div className="flex items-center text-red-500 text-sm mb-2 text-left w-full" aria-live="polite">
             <span className="mr-1">⚠️</span>
-            {error}
+            {error || propsError}
           </div>
         )}
         <div className="flex flex-col md:flex-row gap-4">
