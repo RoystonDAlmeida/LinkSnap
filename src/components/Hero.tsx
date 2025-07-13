@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Link2, Zap, Shield } from "lucide-react";
+import { Link2, Zap, Shield, AlertTriangle } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import ShortUrlModal from "./dashboard/ShortUrlModal";
 import { auth } from "@/firebase";
@@ -13,6 +13,7 @@ const Hero = () => {
   const [showModal, setShowModal] = useState(false);
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -24,33 +25,51 @@ const Hero = () => {
 
   // Handler for the Shorten URL button
   const handleShorten = async () => {
+    setError("");
     if (!user) {
       navigate("/signup");
       return;
     }
 
-    if (longUrl.trim() !== "") {
-      setLoading(true);
+    // Validation: Empty URL
+    if (longUrl.trim() === "") {
+      setError("Please enter a valid URL");
+      return;
+    }
 
-      try {
-        const token = await getIdToken(user);
+    // Validation: Strict HTTP/HTTPS URL
+    let urlToTest = longUrl.trim();
+    
+    // Only allow http or https URLs
+    const urlPattern = /^(https?:\/\/)([\w-]+\.)+[\w-]+(\/[^\s]*)?$/i;
+    if (!urlPattern.test(urlToTest)) {
+      setError("Please enter a valid URL starting with http:// or https:// (e.g., https://example.com).");
+      return;
+    }
+    try {
+      new URL(urlToTest);
+    } catch {
+      setError("Please enter a valid URL (must start with http:// or https:// and be a real domain).");
+      return;
+    }
 
-        const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shorten`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ longUrl: longUrl }),
-        });
-        const data = await response.json();
-        
-        setShortUrl(data.shortUrl);
-        setShowModal(true);
-        setLongUrl("");
-      } finally {
-        setLoading(false);
-      }
+    setLoading(true);
+    try {
+      const token = await getIdToken(user);
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shorten`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ longUrl: longUrl }),
+      });
+      const data = await response.json();
+      setShortUrl(data.shortUrl);
+      setShowModal(true);
+      setLongUrl("");
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -74,10 +93,19 @@ const Hero = () => {
         </div>
 
         <div className="bg-white rounded-2xl shadow-xl p-8 mb-12 max-w-2xl mx-auto border">
+          {/* Error message above input and button */}
+          {error && (
+            <div className="flex items-center text-red-500 text-sm mb-2 text-left w-full" aria-live="polite">
+              <AlertTriangle className="w-4 h-4 mr-1" />
+              {error}
+            </div>
+          )}
           <div className="flex flex-col md:flex-row gap-4">
             <Input 
               placeholder="Enter your long URL here..." 
-              className="flex-1 h-14 text-lg border-2 border-gray-200 focus:border-purple-500"
+              className={`flex-1 h-14 text-lg border-2 rounded-xl shadow-sm transition-colors duration-200 outline-none ${
+                error ? 'border-red-500 focus:border-red-600' : 'border-blue-400 focus:border-purple-600'
+              }`}
               value={longUrl}
               onChange={e => setLongUrl(e.target.value)}
               disabled={loading}
