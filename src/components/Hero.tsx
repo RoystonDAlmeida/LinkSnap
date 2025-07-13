@@ -98,7 +98,7 @@ const Hero = () => {
             </Button>
           </div>
           <p className="text-sm text-gray-500 mt-3">
-            No registration required for basic shortening
+            Registration required for basic shortening
           </p>
         </div>
 
