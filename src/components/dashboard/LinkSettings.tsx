@@ -5,6 +5,7 @@ import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/com
 import { toast } from "@/components/ui/use-toast";
 import { useLinks } from "@/context/LinksContext";
 import LinkRow from "./LinkRow";
+import EditLinkModal from "./EditLinkModal";
 
 const LinkSettings = () => {
   const { recentLinks, setRecentLinks } = useLinks();
@@ -15,6 +16,38 @@ const LinkSettings = () => {
   const [qrLoading, setQrLoading] = useState(false);
   const [qrError, setQrError] = useState<string | null>(null);
   const [showShareMenuId, setShowShareMenuId] = useState<string | null>(null);
+  // State for edit modal: store the selected link object
+  const [editLink, setEditLink] = useState<any | null>(null);
+
+  // Handler for saving edited link (expiry/password)
+  const handleEditLink = async (linkId: string, updates: { expiry_date?: string | null, password?: string | null }) => {
+    try {
+      const user = auth.currentUser;
+      if (!user) throw new Error("Not authenticated");
+      const token = await getIdToken(user);
+      // PATCH request to update expiry/password
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shorten/${linkId}`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updates),
+      });
+      if (!response.ok) throw new Error("Failed to update link");
+      const updated = await response.json();
+      // Update local state
+      setRecentLinks((links: any[]) =>
+        links.map((link) =>
+          link.id === linkId ? { ...link, ...updates } : link
+        )
+      );
+      setEditLink(null); // Close modal
+      toast({ title: "Link updated" });
+    } catch (err: any) {
+      toast({ title: "Error updating link", description: err.message, variant: "destructive" });
+    }
+  };
 
   const handleToggle = async (linkId: string, currentStatus: string) => {
     setLoadingId(linkId);
@@ -28,7 +61,7 @@ const LinkSettings = () => {
       const newStatus = currentStatus === "active" ? "disabled" : "active";
 
       // Fetch the PATCH request response while updating status of the URL
-      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/shorten/${linkId}/status`, {
+      const response = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/links/${linkId}/status`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
@@ -136,11 +169,21 @@ const LinkSettings = () => {
                 setShowShareMenuId={setShowShareMenuId}
                 handleDownloadQR={handleDownloadQR}
                 toast={toast}
+                // Remove edit modal id props, add onEditClick
+                onEditClick={() => setEditLink(link)}
               />
             ))
           )}
           {error && <div className="text-red-500 text-sm text-center">{error}</div>}
         </div>
+        {/* Render the edit modal only once, for the selected link */}
+        {editLink && (
+          <EditLinkModal
+            link={editLink}
+            onClose={() => setEditLink(null)}
+            onSave={handleEditLink}
+          />
+        )}
       </CardContent>
       
     </Card>
