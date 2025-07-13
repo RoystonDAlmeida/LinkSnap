@@ -5,6 +5,7 @@ const logGeodata = require('../logGeodata');
 const bcrypt = require('bcrypt');
 const fs = require('fs');
 const path = require('path');
+const cassandra = require('cassandra-driver');
 
 // Handler function for redirect route
 async function handleRedirect(req, res) {
@@ -28,7 +29,7 @@ async function handleRedirect(req, res) {
       const metaResult = await cassandraClient.execute(
         'SELECT password_hash, expires_at, user_id, status FROM urls WHERE id = ? ALLOW FILTERING',
         [id],
-        { prepare: true }
+        { prepare: true, consistency: cassandra.types.consistencies.quorum } // Use QUORUM for strong consistency
       );
       if (metaResult.rowLength > 0) {
         const { password_hash, expires_at, user_id, status } = metaResult.rows[0];
@@ -63,7 +64,7 @@ async function handleRedirect(req, res) {
         const userResult = await cassandraClient.execute(
           'SELECT user_id, status FROM urls WHERE id = ? ALLOW FILTERING',
           [id],
-          { prepare: true }
+          { prepare: true, consistency: cassandra.types.consistencies.quorum } // Use QUORUM for strong consistency
         );
         if (userResult.rowLength > 0) {
           userId = userResult.rows[0].user_id;
@@ -93,7 +94,7 @@ async function handleRedirect(req, res) {
               const clicksResult = await cassandraClient.execute(
                 'SELECT clicks FROM url_clicks WHERE user_id = ? AND id = ?',
                 [userId, id],
-                { prepare: true }
+                { prepare: true, consistency: cassandra.types.consistencies.quorum } // Use QUORUM for strong consistency
               );
               if (clicksResult.rowLength > 0) {
                 cassandraClicks = Number(clicksResult.rows[0].clicks) || 0;
@@ -111,14 +112,14 @@ async function handleRedirect(req, res) {
 
     // If id is not found in cache
     const query = 'SELECT long_url, password_hash, expires_at FROM urls_by_id WHERE id = ?';
-    const result = await cassandraClient.execute(query, [id], { prepare: true });
+    const result = await cassandraClient.execute(query, [id], { prepare: true, consistency: cassandra.types.consistencies.quorum }); // Use QUORUM for strong consistency
     if (result.rowLength === 0) {
       return res.status(404).send('Short URL not found.');
     }
     const statusResult = await cassandraClient.execute(
       'SELECT user_id, status FROM urls WHERE id = ? ALLOW FILTERING',
       [id],
-      { prepare: true }
+      { prepare: true, consistency: cassandra.types.consistencies.quorum } // Use QUORUM for strong consistency
     );
     if (statusResult.rowLength > 0) {
       userId = statusResult.rows[0].user_id;
@@ -155,7 +156,7 @@ async function handleRedirect(req, res) {
       const userIdResult = await cassandraClient.execute(
         'SELECT user_id FROM urls WHERE id = ? ALLOW FILTERING',
         [id],
-        { prepare: true }
+        { prepare: true, consistency: cassandra.types.consistencies.quorum } // Use QUORUM for strong consistency
       );
       if (userIdResult.rowLength > 0) {
         userId = userIdResult.rows[0].user_id;
@@ -181,7 +182,7 @@ async function handleRedirect(req, res) {
             const clicksResult = await cassandraClient.execute(
               'SELECT clicks FROM url_clicks WHERE user_id = ? AND id = ?',
               [userId, id],
-              { prepare: true }
+              { prepare: true, consistency: cassandra.types.consistencies.quorum } // Use QUORUM for strong consistency
             );
             if (clicksResult.rowLength > 0) {
               cassandraClicks = Number(clicksResult.rows[0].clicks) || 0;
