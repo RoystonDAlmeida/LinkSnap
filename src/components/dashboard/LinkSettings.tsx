@@ -98,7 +98,7 @@ const LinkSettings = () => {
         headers["Authorization"] = `Bearer ${token}`;
       }
       const response = await fetch(
-        `${import.meta.env.VITE_BACKEND_URL}/api/shorten/${link.id}/qrcode`,
+        `${import.meta.env.VITE_BACKEND_URL}/api/links/${link.id}/qrcode`,
         { headers }
       );
       
