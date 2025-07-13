@@ -2,6 +2,7 @@ const cassandraClient = require('../cassandra');
 const { base62Encode } = require('../base62');
 const crypto = require('crypto');
 const bcrypt = require('bcrypt');
+const { z } = require('zod');
 
 // Helper to generate a varied integer from longUrl and timestamp
 function hashUrlToInt(url, timestamp) {
@@ -9,10 +10,37 @@ function hashUrlToInt(url, timestamp) {
   return parseInt(hash.slice(0, 12), 16); // Use first 12 hex digits for a large int
 }
 
+// Zod schema for input validation
+const urlSchema = z.object({
+  longUrl: z.string()
+    .url({ message: 'Please enter a valid URL (must start with http:// or https://)' })
+    .refine(val => /^https?:\/\//.test(val), {
+      message: 'URL must start with http:// or https://'
+    }),
+  password: z.string().optional().refine(val => {
+    if (!val) return true;
+    return /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[!@#$%^&*()_+\-=[\]{};':"\\|,.<>/?]).{8,}$/.test(val);
+  }, {
+    message: 'Password must be at least 8 characters, include upper and lower case letters, a number, and a special character.'
+  }),
+  expiresAt: z.string().optional().refine(val => {
+    if (!val) return true;
+    return !isNaN(Date.parse(val)) && new Date(val) > new Date();
+  }, {
+    message: 'Expiration date must be a valid future date'
+  }),
+});
+
 // Handler function for shortening longUrl
 async function shortenUrl(req, res) {
-  const { longUrl, password, expiresAt } = req.body;
-  if (!longUrl) return res.status(400).json({ error: 'No URL provided' });
+
+  // Validate input using zod
+  const parseResult = urlSchema.safeParse(req.body);
+  if (!parseResult.success) {
+    return res.status(400).json({ error: parseResult.error.errors[0].message });
+  }
+  
+  const { longUrl, password, expiresAt } = parseResult.data;
 
   try {
     // Validate password if provided
