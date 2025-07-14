@@ -31,6 +31,10 @@ app.use(helmet());
 app.use(xssClean());
 const allowedOrigin = process.env.FRONTEND_URL;
 
+// Add morgan for express logging
+const morgan = require('morgan');
+app.use(morgan('combined'));
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
