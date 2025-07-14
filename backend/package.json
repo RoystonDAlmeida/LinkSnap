@@ -7,7 +7,7 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "node index.js",
     "dev": "nodemon index.js",
-    "postinstall": "curl -fSL \"$SECURE_CONNECT_BUNDLE_URL\" -o backend/secure-connect-linksnap.zip"
+    "postinstall": "curl -fSL \"$SECURE_CONNECT_BUNDLE_URL\" -o secure-connect-linksnap.zip"
   },
   "keywords": [],
   "author": "",
