@@ -27,9 +27,19 @@ const redirectRoutes = require('./routes/redirect');
 const linkSettingsRoutes = require('./routes/linkSettings');
 
 const app = express();
-app.use(helmet());
-app.use(xssClean());
 const allowedOrigin = process.env.FRONTEND_URL;
+const backendUrl = process.env.BASE_URL;
+
+// Use helmet with proper directives for sending form requests to the backendUrl
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...helmet.contentSecurityPolicy.getDefaultDirectives(),
+      'form-action': ["'self'", backendUrl],
+    }
+  }
+}));
+app.use(xssClean());
 
 // Add morgan for express logging
 const morgan = require('morgan');
