@@ -31,6 +31,11 @@ app.use(helmet());
 app.use(xssClean());
 const allowedOrigin = process.env.FRONTEND_URL;
 
+// Health check endpoint
+app.get('/api/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // Rate limiter: 100 requests per 15 minutes per IP
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
