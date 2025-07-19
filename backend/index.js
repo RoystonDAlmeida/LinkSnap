@@ -40,7 +40,7 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       ...helmet.contentSecurityPolicy.getDefaultDirectives(),
-      'form-action': ["'self'", backendUrl],
+      'form-action': ['*'],
     }
   }
 }));
