@@ -30,6 +30,11 @@ const app = express();
 const allowedOrigin = process.env.FRONTEND_URL;
 const backendUrl = process.env.BASE_URL;
 
+app.use((req, res, next) => {
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  next();
+});
+
 // Use helmet with proper directives for sending form requests to the backendUrl
 app.use(helmet({
   contentSecurityPolicy: {
