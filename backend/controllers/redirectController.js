@@ -151,7 +151,10 @@ async function handleRedirect(req, res) {
         }
       }
     }
-    await redisClient.setEx(id, 86400, longUrl);
+    // Only cache if there is NO password and NO expiry
+    if (!password_hash && !expires_at) {
+      await redisClient.setEx(id, 86400, longUrl);
+    }
     try {
       const userIdResult = await cassandraClient.execute(
         'SELECT user_id FROM urls WHERE id = ? ALLOW FILTERING',
