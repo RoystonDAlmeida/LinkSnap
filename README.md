@@ -20,6 +20,11 @@
 
 A secure, full-featured, and modern URL shortener with password protection, expiry management, analytics, and a beautiful UI. Built for reliability, privacy, and a seamless user experience.
 
+<!-- Demo GIF -->
+<p align="center">
+  <img src="assets/linksnap_demo.gif" width="600" alt="LinkSnap Demo" />
+</p>
+
 ---
 
 ## 📚 Table of Contents
